@@ -247,14 +247,18 @@ export function CampaignRoom({
   }, []);
 
   // ---- Actions -------------------------------------------------------------
-  const summonDM = useCallback(async (opening = false) => {
+  const summonDM = useCallback(async (options?: { opening?: boolean; checkResult?: boolean }) => {
     setDmThinking(true);
     broadcastDmThinking(true);
     try {
       await fetch("/api/dm", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ campaignId: id, opening }),
+        body: JSON.stringify({
+          campaignId: id,
+          opening: options?.opening,
+          checkResult: options?.checkResult,
+        }),
       });
     } finally {
       broadcastDmThinking(false);
@@ -267,7 +271,7 @@ export function CampaignRoom({
   useEffect(() => {
     if (messages.length > 0 || isHumanDm || openingRequestedRef.current) return;
     openingRequestedRef.current = true;
-    void summonDM(true);
+    void summonDM({ opening: true });
   }, [messages.length, isHumanDm, summonDM]);
 
   const handleSend = useCallback(
@@ -314,8 +318,11 @@ export function CampaignRoom({
         success,
         resolvesPendingCheck: true,
       });
+      if (!isHumanDm) {
+        void summonDM({ checkResult: true });
+      }
     },
-    [id, pendingCheck, myCharacter],
+    [id, pendingCheck, myCharacter, isHumanDm, summonDM],
   );
 
   const handleGenericRoll = useCallback(

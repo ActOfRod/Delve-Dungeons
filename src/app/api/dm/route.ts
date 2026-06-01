@@ -3,33 +3,39 @@ import { createClient } from "@/lib/supabase/server";
 import {
   buildSystemPrompt,
   buildTranscript,
+  checkResultUserPrompt,
+  offlineCheckResultNarration,
   offlineDMNarration,
   offlineOpeningNarration,
   openingUserPrompt,
   parseCheckDirective,
+  type CheckResultContext,
   type DMContext,
 } from "@/lib/dm";
 import { SKILLS } from "@/lib/dnd";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
-import type { Campaign, Character, Message, PendingCheck } from "@/lib/types";
+import type { Campaign, Character, DiceRoll, Message, PendingCheck } from "@/lib/types";
 
 export const runtime = "nodejs";
 
 async function generateWithOpenAI(
   ctx: DMContext,
   latestInput: string,
-  opening: boolean,
+  mode: "opening" | "action" | "checkResult",
+  checkResult?: CheckResultContext,
 ): Promise<string | null> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) return null;
 
   const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
-  const messages = [
+  const messages: { role: string; content: string }[] = [
     { role: "system", content: buildSystemPrompt(ctx) },
     ...buildTranscript(ctx),
   ];
-  if (opening) {
+  if (mode === "opening") {
     messages.push({ role: "user", content: openingUserPrompt() });
+  } else if (mode === "checkResult" && checkResult) {
+    messages.push({ role: "user", content: checkResultUserPrompt(checkResult) });
   } else if (latestInput) {
     messages.push({ role: "user", content: latestInput });
   }
@@ -73,7 +79,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let body: { campaignId?: string; opening?: boolean };
+  let body: { campaignId?: string; opening?: boolean; checkResult?: boolean };
   try {
     body = await request.json();
   } catch {
@@ -82,6 +88,7 @@ export async function POST(request: Request) {
 
   const campaignId = body.campaignId;
   const openingRequested = body.opening === true;
+  const checkResultRequested = body.checkResult === true;
   if (!campaignId) {
     return NextResponse.json({ error: "Missing campaignId" }, { status: 400 });
   }
@@ -137,7 +144,7 @@ export async function POST(request: Request) {
     .select("*", { count: "exact", head: true })
     .eq("campaign_id", campaignId);
 
-  const opening = openingRequested || (messageCount ?? 0) === 0;
+  const opening = openingRequested || ((messageCount ?? 0) === 0 && !checkResultRequested);
 
   if (opening && (messageCount ?? 0) > 0) {
     const { data: existingOpening } = await supabase
@@ -189,16 +196,64 @@ export async function POST(request: Request) {
     activeCharacterName,
   };
 
+  let resolvedCheck: CheckResultContext | null = null;
+  if (checkResultRequested) {
+    const { data: roll } = await supabase
+      .from("dice_rolls")
+      .select("*")
+      .eq("campaign_id", campaignId)
+      .not("skill", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle<DiceRoll>();
+
+    if (roll?.skill && roll.dc != null && roll.success != null) {
+      resolvedCheck = {
+        characterName: roll.character_name ?? "A hero",
+        skill: roll.skill,
+        dc: roll.dc,
+        total: roll.total,
+        success: roll.success,
+      };
+
+      // Avoid double-narrating if the DM already responded to this roll.
+      const { data: dmAfterRoll } = await supabase
+        .from("messages")
+        .select("*")
+        .eq("campaign_id", campaignId)
+        .eq("sender_type", "dm")
+        .gt("created_at", roll.created_at)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle<Message>();
+
+      if (dmAfterRoll) {
+        return NextResponse.json({ message: dmAfterRoll, check: null });
+      }
+    }
+  }
+
   const lastPlayerLine =
     [...recentMessages].reverse().find((m) => m.sender_type === "player")
       ?.content ?? "";
 
-  const generated = opening
-    ? ((await generateWithOpenAI(ctx, "", true)) ?? offlineOpeningNarration(ctx))
-    : ((await generateWithOpenAI(ctx, lastPlayerLine, false)) ??
-      offlineDMNarration(ctx, lastPlayerLine));
+  let generated: string;
+  if (opening) {
+    generated =
+      (await generateWithOpenAI(ctx, "", "opening")) ??
+      offlineOpeningNarration(ctx);
+  } else if (resolvedCheck) {
+    generated =
+      (await generateWithOpenAI(ctx, "", "checkResult", resolvedCheck)) ??
+      offlineCheckResultNarration(ctx, resolvedCheck);
+  } else {
+    generated =
+      (await generateWithOpenAI(ctx, lastPlayerLine, "action")) ??
+      offlineDMNarration(ctx, lastPlayerLine);
+  }
 
-  const directive = opening ? null : parseCheckDirective(generated);
+  const directive =
+    opening || resolvedCheck ? null : parseCheckDirective(generated);
   const narration = directive ? directive.cleaned : generated;
 
   const { data: inserted, error } = await supabase
