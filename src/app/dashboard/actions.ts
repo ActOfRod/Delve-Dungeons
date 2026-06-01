@@ -124,8 +124,79 @@ export async function createCampaign(
 
   if (memberError) return { error: memberError.message };
 
+  // Invite selected friends — drop a notification with the join code.
+  const inviteIds = formData
+    .getAll("invite_friends")
+    .map(String)
+    .filter(Boolean);
+  if (inviteIds.length) {
+    const { data: me } = await supabase
+      .from("profiles")
+      .select("display_name")
+      .eq("id", user.id)
+      .maybeSingle();
+    const fromName =
+      (me as { display_name: string | null } | null)?.display_name ??
+      "A friend";
+    await supabase.from("notifications").insert(
+      inviteIds.map((uid) => ({
+        user_id: uid,
+        type: "campaign_invite",
+        title: "Campaign invite",
+        body: `${fromName} invited you to "${name}".`,
+        data: {
+          campaign_id: campaign.id,
+          invite_code: inviteCode,
+          campaign_name: name,
+        },
+      })),
+    );
+  }
+
   revalidatePath("/dashboard");
   return { ok: true, redirect: `/campaign/${campaign.id}` };
+}
+
+export async function deleteCampaign(id: string): Promise<ActionResult> {
+  const { supabase, user } = await requireUser();
+
+  const { data: campaign } = await supabase
+    .from("campaigns")
+    .select("id, name, owner_id")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (!campaign) return { error: "Campaign not found." };
+  if (campaign.owner_id !== user.id)
+    return { error: "Only the Game Master can close this campaign." };
+
+  // Notify the other members before the campaign (and its rows) cascade away.
+  const { data: members } = await supabase
+    .from("campaign_members")
+    .select("user_id")
+    .eq("campaign_id", id);
+
+  const others = (members ?? [])
+    .map((m) => (m as { user_id: string }).user_id)
+    .filter((uid) => uid !== user.id);
+
+  if (others.length) {
+    await supabase.from("notifications").insert(
+      others.map((uid) => ({
+        user_id: uid,
+        type: "campaign_closed",
+        title: "Campaign closed",
+        body: `The Game Master closed "${campaign.name}".`,
+        data: { campaign_id: id, campaign_name: campaign.name },
+      })),
+    );
+  }
+
+  const { error } = await supabase.from("campaigns").delete().eq("id", id);
+  if (error) return { error: error.message };
+
+  revalidatePath("/dashboard");
+  return { ok: true };
 }
 
 export async function joinCampaign(
@@ -144,12 +215,20 @@ export async function joinCampaign(
 
   const { data: campaign, error } = await supabase
     .from("campaigns")
-    .select("id")
+    .select("id, name, owner_id")
     .eq("invite_code", code)
     .maybeSingle();
 
   if (error) return { error: error.message };
   if (!campaign) return { error: "No campaign found for that code." };
+
+  // Was the player already a member? (Avoid spamming a "joined" notification.)
+  const { data: priorMembership } = await supabase
+    .from("campaign_members")
+    .select("id")
+    .eq("campaign_id", campaign.id)
+    .eq("user_id", user.id)
+    .maybeSingle();
 
   // Determine the next turn order slot.
   const { count } = await supabase
@@ -171,6 +250,24 @@ export async function joinCampaign(
     );
 
   if (joinError) return { error: joinError.message };
+
+  // Let the Game Master know a hero has joined.
+  if (!priorMembership && campaign.owner_id !== user.id) {
+    const { data: character } = await supabase
+      .from("characters")
+      .select("name")
+      .eq("id", characterId)
+      .maybeSingle();
+    const heroName =
+      (character as { name: string } | null)?.name ?? "A new hero";
+    await supabase.from("notifications").insert({
+      user_id: campaign.owner_id,
+      type: "campaign_joined",
+      title: "A hero joined your party",
+      body: `${heroName} joined "${campaign.name}".`,
+      data: { campaign_id: campaign.id },
+    });
+  }
 
   revalidatePath("/dashboard");
   return { ok: true, redirect: `/campaign/${campaign.id}` };

@@ -68,13 +68,13 @@ export async function advanceTurn(
 
   const { data: campaign } = await ctx.supabase
     .from("campaigns")
-    .select("active_character_id")
+    .select("active_character_id, name")
     .eq("id", campaignId)
     .single();
 
   const { data: members } = await ctx.supabase
     .from("campaign_members")
-    .select("character_id, character:characters(name), turn_order")
+    .select("user_id, character_id, character:characters(name), turn_order")
     .eq("campaign_id", campaignId)
     .not("character_id", "is", null)
     .order("turn_order", { ascending: true });
@@ -100,6 +100,18 @@ export async function advanceTurn(
     sender_type: "system",
     content: `It is now ${nextName}'s turn.`,
   });
+
+  // Notify the player whose turn it now is (so they know even if not looking).
+  const nextUserId = (next as { user_id?: string }).user_id;
+  if (nextUserId && nextUserId !== ctx.user.id) {
+    await ctx.supabase.from("notifications").insert({
+      user_id: nextUserId,
+      type: "campaign_turn",
+      title: "It's your turn!",
+      body: `${nextName}, you're up in "${campaign?.name ?? "your campaign"}".`,
+      data: { campaign_id: campaignId },
+    });
+  }
 
   revalidatePath(`/campaign/${campaignId}`);
   return {};

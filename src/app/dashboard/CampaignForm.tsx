@@ -6,6 +6,7 @@ import type { Character } from "@/lib/types";
 import { CAMPAIGN_TEMPLATES, type CampaignTemplate } from "@/lib/campaigns";
 import { createCampaign, type ActionResult } from "./actions";
 import { Submit } from "./CharacterForm";
+import type { FriendOption } from "./DashboardClient";
 
 const LENGTH_BADGE: Record<string, string> = {
   Short: "border-moss/40 bg-moss/10 text-green-200",
@@ -19,9 +20,11 @@ function settingWithParty(t: CampaignTemplate): string {
 
 export function CampaignForm({
   characters,
+  friends = [],
   onDone,
 }: {
   characters: Character[];
+  friends?: FriendOption[];
   onDone: () => void;
 }) {
   const router = useRouter();
@@ -179,6 +182,35 @@ export function CampaignForm({
             ))}
           </select>
         </label>
+
+        {friends.length > 0 && (
+          <div>
+            <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-parchment/60">
+              Invite friends
+            </span>
+            <div className="grid max-h-40 gap-1.5 overflow-y-auto sm:grid-cols-2">
+              {friends.map((f) => (
+                <label
+                  key={f.userId}
+                  className="flex cursor-pointer items-center gap-2 rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-parchment transition hover:border-gold/40"
+                >
+                  <input
+                    type="checkbox"
+                    name="invite_friends"
+                    value={f.userId}
+                    className="accent-ember"
+                  />
+                  <span className="truncate">
+                    {f.displayName ?? "Adventurer"}
+                  </span>
+                </label>
+              ))}
+            </div>
+            <p className="mt-1 text-[11px] text-parchment/40">
+              They&apos;ll get a notification with a one-tap join link.
+            </p>
+          </div>
+        )}
       </div>
 
       {state.error && (

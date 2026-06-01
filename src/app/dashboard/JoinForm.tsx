@@ -9,9 +9,11 @@ import { Submit } from "./CharacterForm";
 
 export function JoinForm({
   characters,
+  initialCode = "",
   onDone,
 }: {
   characters: Character[];
+  initialCode?: string;
   onDone: () => void;
 }) {
   const router = useRouter();
@@ -50,6 +52,7 @@ export function JoinForm({
         <input
           name="invite_code"
           required
+          defaultValue={initialCode}
           placeholder="ABC123"
           maxLength={6}
           className="w-full rounded-xl border border-gold/20 bg-black/30 px-3 py-2.5 text-center font-mono text-lg uppercase tracking-[0.4em] text-parchment placeholder:tracking-normal placeholder:text-parchment/30 outline-none transition focus:border-arcane focus:ring-2 focus:ring-arcane/30"
