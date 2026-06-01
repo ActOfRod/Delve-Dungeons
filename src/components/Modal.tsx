@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { createPortal } from "react-dom";
 
 export function Modal({
   open,
@@ -21,9 +22,14 @@ export function Modal({
     return () => document.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  if (!open) return null;
+  // Modals are always closed during SSR (open is client-driven), so guarding on
+  // `document` avoids a hydration mismatch while keeping the portal client-only.
+  if (!open || typeof document === "undefined") return null;
 
-  return (
+  // Render through a portal to <body> so the modal escapes any ancestor with
+  // a transform/filter (e.g. the backdrop-blur header), which would otherwise
+  // trap `position: fixed` and clip the dialog.
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
         className="absolute inset-0 bg-black/70 backdrop-blur-sm"
@@ -50,6 +56,7 @@ export function Modal({
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

@@ -44,21 +44,23 @@ export default async function CampaignPage({
 
   const { data: myMembership } = await supabase
     .from("campaign_members")
-    .select("*")
+    .select("*, character:characters(*)")
     .eq("campaign_id", id)
     .eq("user_id", user.id)
-    .maybeSingle<CampaignMember>();
+    .maybeSingle<CampaignMember & { character?: Character | null }>();
 
   if (!myMembership) {
     // Not a member yet — bounce to the dashboard to join with the code.
     redirect("/dashboard");
   }
 
-  const [{ data: members }, { data: messages }, { data: rolls }] =
+  const [{ data: rawMembers }, { data: messages }, { data: rolls }] =
     await Promise.all([
+      // NOTE: profiles can't be embedded here (no FK from campaign_members to
+      // profiles), so we fetch and merge display names separately below.
       supabase
         .from("campaign_members")
-        .select("*, character:characters(*), profile:profiles(*)")
+        .select("*, character:characters(*)")
         .eq("campaign_id", id)
         .order("turn_order", { ascending: true }),
       supabase
@@ -75,6 +77,23 @@ export default async function CampaignPage({
         .limit(30),
     ]);
 
+  const memberRows =
+    (rawMembers as (CampaignMember & { character?: Character | null })[]) ?? [];
+  const memberUserIds = memberRows.map((m) => m.user_id);
+  const { data: memberProfiles } = memberUserIds.length
+    ? await supabase
+        .from("profiles")
+        .select("id, display_name, friend_code")
+        .in("id", memberUserIds)
+    : { data: [] };
+  const profileById = new Map(
+    ((memberProfiles as Profile[]) ?? []).map((p) => [p.id, p]),
+  );
+  const members = memberRows.map((m) => ({
+    ...m,
+    profile: profileById.get(m.user_id) ?? null,
+  }));
+
   return (
     <CampaignRoom
       initialCampaign={campaign}
@@ -85,12 +104,7 @@ export default async function CampaignPage({
           profile?: Profile | null;
         }
       }
-      initialMembers={
-        (members as (CampaignMember & {
-          character?: Character | null;
-          profile?: Profile | null;
-        })[]) ?? []
-      }
+      initialMembers={members}
       initialMessages={(messages as Message[]) ?? []}
       initialRolls={(rolls as DiceRoll[]) ?? []}
     />

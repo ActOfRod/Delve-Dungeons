@@ -86,12 +86,25 @@ export function CampaignRoom({
     !!pendingCheck && !!myCharacter && pendingCheck.character_id === myCharacter.id;
 
   const refetchMembers = useCallback(async () => {
+    // profiles can't be embedded (no FK), so fetch members then merge profiles.
     const { data } = await supabase
       .from("campaign_members")
-      .select("*, character:characters(*), profile:profiles(*)")
+      .select("*, character:characters(*)")
       .eq("campaign_id", id)
       .order("turn_order", { ascending: true });
-    if (data) setMembers(data as Member[]);
+    if (!data) return;
+    const rows = data as Member[];
+    const userIds = rows.map((m) => m.user_id);
+    const { data: profiles } = userIds.length
+      ? await supabase
+          .from("profiles")
+          .select("id, display_name, friend_code")
+          .in("id", userIds)
+      : { data: [] };
+    const byId = new Map(
+      ((profiles as Profile[]) ?? []).map((p) => [p.id, p]),
+    );
+    setMembers(rows.map((m) => ({ ...m, profile: byId.get(m.user_id) ?? null })));
   }, [supabase, id]);
 
   // ---- Realtime wiring -----------------------------------------------------
