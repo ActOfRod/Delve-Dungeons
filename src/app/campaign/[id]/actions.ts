@@ -224,3 +224,20 @@ export async function submitRoll(
   }
   return {};
 }
+
+export async function setDmVoiceEnabled(
+  campaignId: string,
+  enabled: boolean,
+): Promise<{ error?: string }> {
+  const ctx = await requireMember(campaignId);
+  if ("error" in ctx) return { error: ctx.error };
+
+  const { error } = await ctx.supabase
+    .from("campaigns")
+    .update({ dm_voice_enabled: enabled })
+    .eq("id", campaignId);
+
+  if (error) return { error: error.message };
+  revalidatePath(`/campaign/${campaignId}`);
+  return {};
+}

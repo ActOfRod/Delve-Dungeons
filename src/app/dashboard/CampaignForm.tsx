@@ -49,6 +49,11 @@ export function CampaignForm({
   const [characterId, setCharacterId] = useState(() =>
     pickDefaultCharacter(characters, busyCharacterIds),
   );
+  const [dmVoiceEnabled, setDmVoiceEnabled] = useState(true);
+
+  useEffect(() => {
+    if (characterId) setDmVoiceEnabled(true);
+  }, [characterId]);
 
   useEffect(() => {
     if (state.ok && state.redirect) {
@@ -198,6 +203,56 @@ export function CampaignForm({
               );
             })}
           </select>
+          {characterId && (
+            <div className="mt-3 rounded-xl border border-arcane/25 bg-arcane/5 p-3">
+              <span className="mb-2 block text-xs font-medium uppercase tracking-wide text-arcane-bright">
+                AI Dungeon Master
+              </span>
+              <p className="mb-3 text-[11px] leading-snug text-parchment/50">
+                With a hero at the table, Gemini runs the game. Choose how you
+                want to experience the narration.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <label
+                  className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition ${
+                    dmVoiceEnabled
+                      ? "border-arcane/50 bg-arcane/15 text-parchment"
+                      : "border-white/10 text-parchment/60 hover:border-white/20"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="dm_voice_mode"
+                    checked={dmVoiceEnabled}
+                    onChange={() => setDmVoiceEnabled(true)}
+                    className="accent-arcane"
+                  />
+                  Voice narration
+                </label>
+                <label
+                  className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition ${
+                    !dmVoiceEnabled
+                      ? "border-white/20 bg-white/10 text-parchment"
+                      : "border-white/10 text-parchment/60 hover:border-white/20"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="dm_voice_mode"
+                    checked={!dmVoiceEnabled}
+                    onChange={() => setDmVoiceEnabled(false)}
+                    className="accent-arcane"
+                  />
+                  Text only
+                </label>
+              </div>
+              <input
+                type="hidden"
+                name="dm_voice_enabled"
+                value={dmVoiceEnabled ? "true" : "false"}
+              />
+            </div>
+          )}
         </label>
 
         {friends.length > 0 && (

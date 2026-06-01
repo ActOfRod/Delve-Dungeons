@@ -82,6 +82,8 @@ export async function createCampaign(
   const description = String(formData.get("description") || "").trim();
   const setting = String(formData.get("setting") || "").trim();
   const characterId = String(formData.get("character_id") || "").trim();
+  const dmVoiceEnabled =
+    characterId && formData.get("dm_voice_enabled") === "true";
 
   if (!name) return { error: "Give your campaign a name." };
 
@@ -108,6 +110,7 @@ export async function createCampaign(
       status: "active",
       // When bringing a hero, the AI runs the table — spotlight starts on you.
       active_character_id: characterId || null,
+      dm_voice_enabled: dmVoiceEnabled,
     })
     .select()
     .single();

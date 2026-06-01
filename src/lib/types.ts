@@ -92,6 +92,8 @@ export interface Campaign {
   active_character_id: string | null;
   // A pending skill check surfaced to every connected player in realtime.
   pending_check: PendingCheck | null;
+  /** When true, Gemini TTS reads AI DM narration aloud for this table. */
+  dm_voice_enabled: boolean;
   created_at: string;
 }
 
