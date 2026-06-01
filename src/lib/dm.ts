@@ -322,6 +322,7 @@ interface ParsedPremise {
 function parseCampaignPremise(ctx: DMContext): ParsedPremise {
   const raw = ctx.campaign.description?.trim() ?? "";
   const setting = ctx.campaign.setting?.trim() ?? "";
+  const partySize = ctx.party.length || 1;
 
   if (!raw) {
     return {
@@ -342,7 +343,7 @@ function parseCampaignPremise(ctx: DMContext): ParsedPremise {
         !scene &&
         /^(?:Open as|Begin in|Start in|The party gathers)/i.test(sentence)
       ) {
-        scene = cleanSceneSentence(sentence);
+        scene = cleanSceneSentence(sentence, partySize);
         continue;
       }
 
@@ -350,13 +351,13 @@ function parseCampaignPremise(ctx: DMContext): ParsedPremise {
         .split(/\.\s*(?:Begin|Open as|Start by|Start in|Then lead)/i)[0]
         ?.trim();
       if (beforeInstruction && SCENE_CUE.test(beforeInstruction) && !scene) {
-        scene = cleanSceneSentence(beforeInstruction);
+        scene = cleanSceneSentence(beforeInstruction, partySize);
       }
       continue;
     }
 
     if (SCENE_CUE.test(sentence) && !scene) {
-      scene = cleanSceneSentence(sentence);
+      scene = cleanSceneSentence(sentence, partySize);
       continue;
     }
 
@@ -371,7 +372,20 @@ function parseCampaignPremise(ctx: DMContext): ParsedPremise {
   return { hook, scene };
 }
 
-function cleanSceneSentence(sentence: string): string {
+/** Keep DM narration in consistent second person after party→you conversions. */
+function alignSecondPerson(text: string, partySize = 1): string {
+  const group = partySize > 1 ? "you all" : "you";
+  return text
+    .replace(/\bbetween them\b/gi, `between ${group}`)
+    .replace(/\bbefore them\b/gi, `before ${group}`)
+    .replace(/\bamong them\b/gi, `among ${group}`)
+    .replace(/\bbehind them\b/gi, `behind ${group}`)
+    .replace(/\baround them\b/gi, `around ${group}`)
+    .replace(/\bfor them\b/gi, `for ${group}`)
+    .replace(/\bthe party\b/gi, group);
+}
+
+function cleanSceneSentence(sentence: string, partySize = 1): string {
   let s = sentence.trim();
   s = s.replace(/\.\s*(Begin|Open as|Start by|Start in|Then lead)[^.]*$/i, ".");
   s = s.replace(/,\s*then lead[^.]*$/i, "");
@@ -395,7 +409,7 @@ function cleanSceneSentence(sentence: string): string {
   }
 
   if (!/[.!?]$/.test(s)) s += ".";
-  return s;
+  return alignSecondPerson(s, partySize);
 }
 
 function defaultOpeningScene(
@@ -563,5 +577,5 @@ export function offlineDMNarration(
   } else {
     body += `\n\n${pick(PROMPTS, seed + 4)}`;
   }
-  return body;
+  return alignSecondPerson(body, ctx.party.length || 1);
 }
