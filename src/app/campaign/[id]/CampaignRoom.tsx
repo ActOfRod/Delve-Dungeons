@@ -13,6 +13,8 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { Logo } from "@/components/Logo";
 import { NotificationBell } from "@/components/NotificationBell";
+import { DmVoiceToggle } from "@/components/DmVoiceToggle";
+import { useDmVoicePlayer } from "@/lib/useDmVoicePlayer";
 import type {
   Campaign,
   CampaignMember,
@@ -27,6 +29,7 @@ import {
   advanceTurn,
   postMessage,
   setActiveCharacter,
+  setDmVoiceEnabled,
   submitRoll,
 } from "./actions";
 import { MessageFeed } from "./MessageFeed";
@@ -77,6 +80,7 @@ export function CampaignRoom({
 
   const id = campaign.id;
   const isHumanDm = myMembership.role === "dm";
+  const dmVoiceEnabled = campaign.dm_voice_enabled ?? false;
   const myCharacter = myMembership.character ?? null;
   const pendingCheck = campaign.pending_check as PendingCheck | null;
 
@@ -348,6 +352,22 @@ export function CampaignRoom({
 
   const respondingNames = Object.values(responding).map((r) => r.name);
 
+  const { speaking: dmSpeaking, stopSpeaking: stopDmVoice } = useDmVoicePlayer({
+    campaignId: id,
+    enabled: dmVoiceEnabled && !isHumanDm,
+    messages,
+  });
+
+  const handleDmVoiceToggle = useCallback(
+    (enabled: boolean) => {
+      setCampaign((prev) => ({ ...prev, dm_voice_enabled: enabled }));
+      startTransition(async () => {
+        await setDmVoiceEnabled(id, enabled);
+      });
+    },
+    [id],
+  );
+
   return (
     <div className="flex min-h-dvh flex-col">
       <header className="sticky top-0 z-20 border-b border-white/5 bg-ink/80 backdrop-blur-md">
@@ -366,6 +386,14 @@ export function CampaignRoom({
             </div>
           </div>
           <div className="flex items-center gap-3">
+            {!isHumanDm && (
+              <DmVoiceToggle
+                enabled={dmVoiceEnabled}
+                speaking={dmSpeaking}
+                onToggle={handleDmVoiceToggle}
+                onStop={stopDmVoice}
+              />
+            )}
             <span className="hidden items-center gap-1.5 text-xs text-parchment/60 sm:flex">
               <span className="h-2 w-2 rounded-full bg-moss" />
               {online.size} online
