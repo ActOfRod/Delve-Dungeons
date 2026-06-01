@@ -1,19 +1,20 @@
-/** Strip skill-check directives and cap length for TTS input. */
+/** Strip skill-check directives and cap length for faster TTS. */
 export function textForDmSpeech(content: string): string {
+  const maxChars = parseInt(process.env.GOOGLE_GEMINI_TTS_MAX_CHARS || "1800", 10);
+  const cap = Number.isNaN(maxChars) || maxChars < 200 ? 1800 : maxChars;
   const cleaned = content
     .replace(/\[CHECK:\s*[^\]]+\]/gi, "")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
-  if (cleaned.length <= 3500) return cleaned;
-  return `${cleaned.slice(0, 3497)}…`;
+  if (cleaned.length <= cap) return cleaned;
+  const slice = cleaned.slice(0, cap);
+  const breakAt = slice.lastIndexOf(". ");
+  if (breakAt > cap * 0.6) return slice.slice(0, breakAt + 1);
+  return `${slice}…`;
 }
 
 export function dmSpeechPrompt(text: string): string {
-  return (
-    "Read the following as a seasoned dungeon master narrating a Dungeons & Dragons " +
-    "scene. Use a dramatic, warm storyteller tone. Do not add or change any words:\n\n" +
-    text
-  );
+  return `Dramatic dungeon master narration:\n\n${text}`;
 }
 
 /** Wrap raw PCM (s16le mono) in a WAV header for browser playback. */
@@ -58,4 +59,62 @@ export function geminiTtsModelsToTry(): string[] {
 
 export function geminiTtsVoice(): string {
   return process.env.GOOGLE_GEMINI_TTS_VOICE?.trim() || DEFAULT_GEMINI_TTS_VOICE;
+}
+
+/** Synthesize DM narration to WAV via Gemini TTS. Returns null if unavailable. */
+export async function synthesizeGeminiTts(text: string): Promise<Buffer | null> {
+  const apiKey = process.env.GOOGLE_GEMINI_API_KEY;
+  if (!apiKey) return null;
+
+  const speechText = dmSpeechPrompt(textForDmSpeech(text));
+  const voiceName = geminiTtsVoice();
+
+  for (const model of geminiTtsModelsToTry()) {
+    try {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-goog-api-key": apiKey,
+          },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: speechText }] }],
+            generationConfig: {
+              responseModalities: ["AUDIO"],
+              speechConfig: {
+                voiceConfig: {
+                  prebuiltVoiceConfig: { voiceName },
+                },
+              },
+            },
+          }),
+        },
+      );
+
+      if (!res.ok) {
+        const detail = await res.text();
+        console.error("[dm-tts] Gemini error:", model, res.status, detail.slice(0, 400));
+        if (res.status === 404) continue;
+        return null;
+      }
+
+      const data = await res.json();
+      const inlineData = data?.candidates?.[0]?.content?.parts?.find(
+        (part: { inlineData?: { data?: string } }) => part.inlineData?.data,
+      )?.inlineData;
+
+      if (!inlineData?.data) {
+        console.error("[dm-tts] No audio in response:", model);
+        continue;
+      }
+
+      return pcmToWav(Buffer.from(inlineData.data, "base64"));
+    } catch (err) {
+      console.error("[dm-tts] Request failed:", model, err);
+    }
+  }
+
+  return null;
 }
