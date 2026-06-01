@@ -18,6 +18,9 @@ import type { Campaign, Character, DiceRoll, Message, PendingCheck } from "@/lib
 
 export const runtime = "nodejs";
 
+/** Models that work on the Gemini API as of mid-2026 (2.0 Flash is deprecated). */
+const GEMINI_FALLBACK_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite"];
+
 type DMGenerationMode = "opening" | "action" | "checkResult";
 
 function buildPromptMessages(
@@ -71,6 +74,80 @@ function extractGeminiText(data: {
   return text || undefined;
 }
 
+function geminiModelsToTry(): string[] {
+  const configured = process.env.GOOGLE_GEMINI_MODEL?.trim();
+  const list = configured
+    ? [configured, ...GEMINI_FALLBACK_MODELS]
+    : GEMINI_FALLBACK_MODELS;
+  return [...new Set(list)];
+}
+
+function geminiMaxOutputTokens(model: string): number {
+  const env = process.env.GOOGLE_GEMINI_MAX_OUTPUT_TOKENS;
+  if (env) {
+    const parsed = parseInt(env, 10);
+    if (!Number.isNaN(parsed) && parsed > 0) return parsed;
+  }
+  // Gemini 3 "thinking" consumes part of the output budget.
+  return /gemini-3/i.test(model) ? 2048 : 1024;
+}
+
+async function requestGemini(
+  apiKey: string,
+  model: string,
+  contents: { role: "user" | "model"; parts: { text: string }[] }[],
+  systemPrompt: string,
+): Promise<
+  | { ok: true; text: string }
+  | { ok: false; status: number; detail: string; retry: boolean }
+> {
+  const generationConfig: Record<string, unknown> = {
+    temperature: 0.9,
+    maxOutputTokens: geminiMaxOutputTokens(model),
+  };
+  if (/gemini-3/i.test(model)) {
+    generationConfig.thinkingConfig = { thinkingLevel: "minimal" };
+  }
+
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": apiKey,
+      },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: systemPrompt }] },
+        contents,
+        generationConfig,
+      }),
+    },
+  );
+
+  if (!res.ok) {
+    const detail = await res.text();
+    return {
+      ok: false,
+      status: res.status,
+      detail,
+      retry: res.status === 404,
+    };
+  }
+
+  const data = await res.json();
+  const text = extractGeminiText(data);
+  if (!text) {
+    return {
+      ok: false,
+      status: 200,
+      detail: JSON.stringify(data).slice(0, 500),
+      retry: true,
+    };
+  }
+  return { ok: true, text };
+}
+
 async function generateWithGemini(
   ctx: DMContext,
   latestInput: string,
@@ -80,50 +157,35 @@ async function generateWithGemini(
   const apiKey = process.env.GOOGLE_GEMINI_API_KEY;
   if (!apiKey) return null;
 
-  const model = process.env.GOOGLE_GEMINI_MODEL || "gemini-2.0-flash";
   const messages = buildPromptMessages(ctx, latestInput, mode, checkResult);
   const contents = toGeminiContents(messages);
   if (contents.length === 0) {
     contents.push({ role: "user", parts: [{ text: openingUserPrompt() }] });
   }
 
-  const generationConfig: Record<string, unknown> = {
-    temperature: 0.9,
-    maxOutputTokens: 500,
-  };
-  if (/gemini-3/i.test(model)) {
-    generationConfig.thinkingConfig = { thinkingLevel: "minimal" };
-  }
+  const systemPrompt = buildSystemPrompt(ctx);
 
   try {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-goog-api-key": apiKey,
-        },
-        body: JSON.stringify({
-          systemInstruction: {
-            parts: [{ text: buildSystemPrompt(ctx) }],
-          },
-          contents,
-          generationConfig,
-        }),
-      },
-    );
-    if (!res.ok) {
-      const detail = await res.text();
-      console.error("[dm] Gemini error:", res.status, detail.slice(0, 500));
-      return null;
+    for (const model of geminiModelsToTry()) {
+      const result = await requestGemini(apiKey, model, contents, systemPrompt);
+      if (result.ok) {
+        const primary = process.env.GOOGLE_GEMINI_MODEL?.trim() || GEMINI_FALLBACK_MODELS[0];
+        if (model !== primary) {
+          console.warn("[dm] Gemini succeeded with fallback model:", model);
+        }
+        return result.text;
+      }
+
+      console.error(
+        "[dm] Gemini error:",
+        model,
+        result.status,
+        result.detail.slice(0, 500),
+      );
+
+      if (!result.retry) return null;
     }
-    const data = await res.json();
-    const content = extractGeminiText(data);
-    if (!content) {
-      console.error("[dm] Gemini returned no text:", JSON.stringify(data).slice(0, 500));
-    }
-    return content ?? null;
+    return null;
   } catch (err) {
     console.error("[dm] Gemini request failed:", err);
     return null;
@@ -156,7 +218,7 @@ async function generateWithOpenAI(
         model,
         messages,
         temperature: 0.9,
-        max_tokens: 500,
+        max_tokens: 1024,
       }),
     });
     if (!res.ok) return null;

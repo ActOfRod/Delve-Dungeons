@@ -28,7 +28,7 @@ The party:
 ${party || "- (no heroes yet)"}
 
 Your job:
-- Narrate vividly but concisely (2-4 short paragraphs max). Second person, present tense.
+- Narrate vividly in 2–5 paragraphs. Include sensory detail, clear outcomes for player actions, and NPC dialogue when someone speaks. Second person, present tense.
 - React to the players' most recent actions. Voice NPCs with personality.
 - When an action's outcome is uncertain, call for an ability or skill check. To do so, end your message with a line in EXACTLY this format on its own line:
   [CHECK: <Skill> | DC <number>]
@@ -65,7 +65,7 @@ export function parseCheckDirective(
 }
 
 const OPENING_USER_PROMPT =
-  "Begin the adventure at the START of the story — wherever the heroes are when the action first opens, not at a later destination. Use the premise for context but do not quote DM instructions from it (e.g. 'Begin by…', 'Open as…', 'lead them to…'). Set one vivid scene, establish the hook, and invite the heroes to act. Do not call for a skill check yet.";
+  "Begin the adventure at the START of the story — wherever the heroes are when the action first opens, not at a later destination. Use the premise for context but do not quote DM instructions from it (e.g. 'Begin by…', 'Open as…', 'lead them to…'). Set one vivid scene in 3–5 paragraphs: place, mood, hook, and an invitation to act. Do not call for a skill check yet.";
 
 export function openingUserPrompt(): string {
   return OPENING_USER_PROMPT;
