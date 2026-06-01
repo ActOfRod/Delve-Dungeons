@@ -4,6 +4,8 @@ import {
   buildSystemPrompt,
   buildTranscript,
   offlineDMNarration,
+  offlineOpeningNarration,
+  openingUserPrompt,
   parseCheckDirective,
   type DMContext,
 } from "@/lib/dm";
@@ -16,6 +18,7 @@ export const runtime = "nodejs";
 async function generateWithOpenAI(
   ctx: DMContext,
   latestInput: string,
+  opening: boolean,
 ): Promise<string | null> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) return null;
@@ -25,7 +28,9 @@ async function generateWithOpenAI(
     { role: "system", content: buildSystemPrompt(ctx) },
     ...buildTranscript(ctx),
   ];
-  if (latestInput) {
+  if (opening) {
+    messages.push({ role: "user", content: openingUserPrompt() });
+  } else if (latestInput) {
     messages.push({ role: "user", content: latestInput });
   }
 
@@ -68,7 +73,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let body: { campaignId?: string };
+  let body: { campaignId?: string; opening?: boolean };
   try {
     body = await request.json();
   } catch {
@@ -76,6 +81,7 @@ export async function POST(request: Request) {
   }
 
   const campaignId = body.campaignId;
+  const openingRequested = body.opening === true;
   if (!campaignId) {
     return NextResponse.json({ error: "Missing campaignId" }, { status: 400 });
   }
@@ -126,6 +132,42 @@ export async function POST(request: Request) {
     "sender_type" | "character_name" | "content"
   >[] | null) ?? []).reverse();
 
+  const { count: messageCount } = await supabase
+    .from("messages")
+    .select("*", { count: "exact", head: true })
+    .eq("campaign_id", campaignId);
+
+  const opening = openingRequested || (messageCount ?? 0) === 0;
+
+  if (opening && (messageCount ?? 0) > 0) {
+    const { data: existingOpening } = await supabase
+      .from("messages")
+      .select("*")
+      .eq("campaign_id", campaignId)
+      .eq("sender_type", "dm")
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    if (existingOpening) {
+      return NextResponse.json({ message: existingOpening, check: null });
+    }
+  }
+
+  const { data: humanDm } = await supabase
+    .from("campaign_members")
+    .select("id")
+    .eq("campaign_id", campaignId)
+    .eq("role", "dm")
+    .limit(1)
+    .maybeSingle();
+
+  if (opening && humanDm) {
+    return NextResponse.json(
+      { error: "A human Game Master is running this table." },
+      { status: 400 },
+    );
+  }
+
   let activeCharacterName: string | null = null;
   if (campaign.active_character_id) {
     const { data: activeChar } = await supabase
@@ -151,11 +193,12 @@ export async function POST(request: Request) {
     [...recentMessages].reverse().find((m) => m.sender_type === "player")
       ?.content ?? "";
 
-  const generated =
-    (await generateWithOpenAI(ctx, "")) ??
-    offlineDMNarration(ctx, lastPlayerLine);
+  const generated = opening
+    ? ((await generateWithOpenAI(ctx, "", true)) ?? offlineOpeningNarration(ctx))
+    : ((await generateWithOpenAI(ctx, lastPlayerLine, false)) ??
+      offlineDMNarration(ctx, lastPlayerLine));
 
-  const directive = parseCheckDirective(generated);
+  const directive = opening ? null : parseCheckDirective(generated);
   const narration = directive ? directive.cleaned : generated;
 
   const { data: inserted, error } = await supabase

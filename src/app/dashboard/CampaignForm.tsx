@@ -18,12 +18,21 @@ function settingWithParty(t: CampaignTemplate): string {
   return `${t.setting} · best for ${t.minPlayers}–${t.maxPlayers} players (level ${t.suggestedLevel})`;
 }
 
+function pickDefaultCharacter(
+  characters: Character[],
+  busyCharacterIds: ReadonlySet<string>,
+): string {
+  return characters.find((c) => !busyCharacterIds.has(c.id))?.id ?? "";
+}
+
 export function CampaignForm({
   characters,
+  busyCharacterIds = new Set<string>(),
   friends = [],
   onDone,
 }: {
   characters: Character[];
+  busyCharacterIds?: ReadonlySet<string>;
   friends?: FriendOption[];
   onDone: () => void;
 }) {
@@ -37,6 +46,9 @@ export function CampaignForm({
   const [name, setName] = useState("");
   const [setting, setSetting] = useState("");
   const [description, setDescription] = useState("");
+  const [characterId, setCharacterId] = useState(() =>
+    pickDefaultCharacter(characters, busyCharacterIds),
+  );
 
   useEffect(() => {
     if (state.ok && state.redirect) {
@@ -169,17 +181,22 @@ export function CampaignForm({
           </span>
           <select
             name="character_id"
-            defaultValue=""
+            value={characterId}
+            onChange={(e) => setCharacterId(e.target.value)}
             className="w-full rounded-xl border border-gold/20 bg-black/30 px-3 py-2.5 text-parchment outline-none transition focus:border-arcane focus:ring-2 focus:ring-arcane/30"
           >
             <option value="" className="bg-ink">
               Run as Game Master only
             </option>
-            {characters.map((c) => (
-              <option key={c.id} value={c.id} className="bg-ink">
-                {c.name} — Lv {c.level} {c.race} {c.klass}
-              </option>
-            ))}
+            {characters.map((c) => {
+              const inCampaign = busyCharacterIds.has(c.id);
+              return (
+                <option key={c.id} value={c.id} className="bg-ink">
+                  {c.name} — Lv {c.level} {c.race} {c.klass}
+                  {inCampaign ? " (in a campaign)" : ""}
+                </option>
+              );
+            })}
           </select>
         </label>
 

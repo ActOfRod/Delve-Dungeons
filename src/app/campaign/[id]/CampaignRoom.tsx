@@ -62,6 +62,7 @@ export function CampaignRoom({
 }) {
   const supabase = useMemo(() => createClient(), []);
   const channelRef = useRef<RealtimeChannel | null>(null);
+  const openingRequestedRef = useRef(false);
 
   const [campaign, setCampaign] = useState(initialCampaign);
   const [members, setMembers] = useState<Member[]>(initialMembers);
@@ -75,7 +76,7 @@ export function CampaignRoom({
   const [, startTransition] = useTransition();
 
   const id = campaign.id;
-  const isOwner = campaign.owner_id === currentUserId;
+  const isHumanDm = myMembership.role === "dm";
   const myCharacter = myMembership.character ?? null;
   const pendingCheck = campaign.pending_check as PendingCheck | null;
 
@@ -246,14 +247,14 @@ export function CampaignRoom({
   }, []);
 
   // ---- Actions -------------------------------------------------------------
-  const summonDM = useCallback(async () => {
+  const summonDM = useCallback(async (opening = false) => {
     setDmThinking(true);
     broadcastDmThinking(true);
     try {
       await fetch("/api/dm", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ campaignId: id }),
+        body: JSON.stringify({ campaignId: id, opening }),
       });
     } finally {
       broadcastDmThinking(false);
@@ -261,6 +262,13 @@ export function CampaignRoom({
       setTimeout(() => setDmThinking(false), 500);
     }
   }, [id, broadcastDmThinking]);
+
+  // AI DM tables open with a generated scene instead of waiting for input.
+  useEffect(() => {
+    if (messages.length > 0 || isHumanDm || openingRequestedRef.current) return;
+    openingRequestedRef.current = true;
+    void summonDM(true);
+  }, [messages.length, isHumanDm, summonDM]);
 
   const handleSend = useCallback(
     async (text: string) => {
@@ -381,6 +389,7 @@ export function CampaignRoom({
             onSend={handleSend}
             onTyping={broadcastResponding}
             canSpeak={!!myCharacter}
+            awaitingOpening={!isHumanDm && messages.length === 0}
           />
         </div>
 
@@ -397,7 +406,7 @@ export function CampaignRoom({
             onClaimSpotlight={handleClaimSpotlight}
           />
 
-          {isOwner && (
+          {isHumanDm && (
             <DMCheckControls
               campaignId={id}
               members={members}
