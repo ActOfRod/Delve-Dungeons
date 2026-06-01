@@ -5,6 +5,8 @@ export interface DMContext {
   party: Pick<Character, "name" | "race" | "klass" | "level">[];
   recentMessages: Pick<Message, "sender_type" | "character_name" | "content">[];
   activeCharacterName?: string | null;
+  /** Shorter narration when TTS voice mode is on. */
+  dmVoiceEnabled?: boolean;
 }
 
 export interface CheckResultContext {
@@ -15,10 +17,17 @@ export interface CheckResultContext {
   success: boolean;
 }
 
-export function buildSystemPrompt(ctx: DMContext): string {
+export function buildSystemPrompt(
+  ctx: DMContext,
+  options?: { voiceMode?: boolean },
+): string {
   const party = ctx.party
     .map((c) => `- ${c.name}, a level ${c.level} ${c.race} ${c.klass}`)
     .join("\n");
+
+  const lengthGuide = options?.voiceMode
+    ? "- Narrate in 2–3 concise paragraphs suited for reading aloud. Keep responses focused; avoid long lists."
+    : "- Narrate vividly in 2–5 paragraphs. Include sensory detail, clear outcomes for player actions, and NPC dialogue when someone speaks. Second person, present tense.";
 
   return `You are the Dungeon Master for a text-based Dungeons & Dragons (5e) game called "${ctx.campaign.name}".
 ${ctx.campaign.setting ? `Tone & setting: ${ctx.campaign.setting}.` : ""}
@@ -28,7 +37,7 @@ The party:
 ${party || "- (no heroes yet)"}
 
 Your job:
-- Narrate vividly in 2–5 paragraphs. Include sensory detail, clear outcomes for player actions, and NPC dialogue when someone speaks. Second person, present tense.
+${lengthGuide}
 - React to the players' most recent actions. Voice NPCs with personality.
 - When an action's outcome is uncertain, call for an ability or skill check. To do so, end your message with a line in EXACTLY this format on its own line:
   [CHECK: <Skill> | DC <number>]

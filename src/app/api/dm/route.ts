@@ -12,6 +12,7 @@ import {
   type CheckResultContext,
   type DMContext,
 } from "@/lib/dm";
+import { synthesizeGeminiTts } from "@/lib/dm-tts";
 import { SKILLS } from "@/lib/dnd";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import type { Campaign, Character, DiceRoll, Message, PendingCheck } from "@/lib/types";
@@ -168,7 +169,7 @@ async function generateWithGemini(
     contents.push({ role: "user", parts: [{ text: openingUserPrompt() }] });
   }
 
-  const systemPrompt = buildSystemPrompt(ctx);
+  const systemPrompt = buildSystemPrompt(ctx, { voiceMode: ctx.dmVoiceEnabled });
 
   try {
     for (const model of geminiModelsToTry()) {
@@ -208,7 +209,7 @@ async function generateWithOpenAI(
 
   const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
   const messages: { role: string; content: string }[] = [
-    { role: "system", content: buildSystemPrompt(ctx) },
+    { role: "system", content: buildSystemPrompt(ctx, { voiceMode: ctx.dmVoiceEnabled }) },
     ...buildPromptMessages(ctx, latestInput, mode, checkResult),
   ];
 
@@ -378,6 +379,7 @@ export async function POST(request: Request) {
     party,
     recentMessages,
     activeCharacterName,
+    dmVoiceEnabled: campaign.dm_voice_enabled ?? false,
   };
 
   let resolvedCheck: CheckResultContext | null = null;
@@ -422,18 +424,31 @@ export async function POST(request: Request) {
       ?.content ?? "";
 
   let generated: string;
+  let usedAi = false;
   if (opening) {
-    generated =
-      (await generateWithAI(ctx, "", "opening")) ??
-      offlineOpeningNarration(ctx);
+    const ai = await generateWithAI(ctx, "", "opening");
+    if (ai) {
+      generated = ai;
+      usedAi = true;
+    } else {
+      generated = offlineOpeningNarration(ctx);
+    }
   } else if (resolvedCheck) {
-    generated =
-      (await generateWithAI(ctx, "", "checkResult", resolvedCheck)) ??
-      offlineCheckResultNarration(ctx, resolvedCheck);
+    const ai = await generateWithAI(ctx, "", "checkResult", resolvedCheck);
+    if (ai) {
+      generated = ai;
+      usedAi = true;
+    } else {
+      generated = offlineCheckResultNarration(ctx, resolvedCheck);
+    }
   } else {
-    generated =
-      (await generateWithAI(ctx, lastPlayerLine, "action")) ??
-      offlineDMNarration(ctx, lastPlayerLine);
+    const ai = await generateWithAI(ctx, lastPlayerLine, "action");
+    if (ai) {
+      generated = ai;
+      usedAi = true;
+    } else {
+      generated = offlineDMNarration(ctx, lastPlayerLine);
+    }
   }
 
   const directive =
@@ -479,5 +494,15 @@ export async function POST(request: Request) {
       .eq("id", campaignId);
   }
 
-  return NextResponse.json({ message: inserted, check: directive ?? null });
+  let audioWavBase64: string | undefined;
+  if (campaign.dm_voice_enabled && usedAi) {
+    const wav = await synthesizeGeminiTts(narration);
+    if (wav) audioWavBase64 = wav.toString("base64");
+  }
+
+  return NextResponse.json({
+    message: inserted,
+    check: directive ?? null,
+    audioWavBase64,
+  });
 }

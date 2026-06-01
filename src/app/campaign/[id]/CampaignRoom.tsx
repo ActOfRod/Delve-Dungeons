@@ -250,12 +250,19 @@ export function CampaignRoom({
     });
   }, []);
 
+  const { speaking: dmSpeaking, stopSpeaking: stopDmVoice, playPreparedAudio } =
+    useDmVoicePlayer({
+      campaignId: id,
+      enabled: dmVoiceEnabled && !isHumanDm,
+      messages,
+    });
+
   // ---- Actions -------------------------------------------------------------
   const summonDM = useCallback(async (options?: { opening?: boolean; checkResult?: boolean }) => {
     setDmThinking(true);
     broadcastDmThinking(true);
     try {
-      await fetch("/api/dm", {
+      const res = await fetch("/api/dm", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -264,12 +271,20 @@ export function CampaignRoom({
           checkResult: options?.checkResult,
         }),
       });
+      if (res.ok && dmVoiceEnabled && !isHumanDm) {
+        const data = (await res.json()) as {
+          message?: { id: string };
+          audioWavBase64?: string;
+        };
+        if (data.message?.id && data.audioWavBase64) {
+          playPreparedAudio(data.message.id, data.audioWavBase64);
+        }
+      }
     } finally {
       broadcastDmThinking(false);
-      // The DM message arriving via realtime clears the flag; clear locally too.
       setTimeout(() => setDmThinking(false), 500);
     }
-  }, [id, broadcastDmThinking]);
+  }, [id, broadcastDmThinking, dmVoiceEnabled, isHumanDm, playPreparedAudio]);
 
   // AI DM tables open with a generated scene instead of waiting for input.
   useEffect(() => {
@@ -351,12 +366,6 @@ export function CampaignRoom({
   }, [pendingCheck, myCharacter]);
 
   const respondingNames = Object.values(responding).map((r) => r.name);
-
-  const { speaking: dmSpeaking, stopSpeaking: stopDmVoice } = useDmVoicePlayer({
-    campaignId: id,
-    enabled: dmVoiceEnabled && !isHumanDm,
-    messages,
-  });
 
   const handleDmVoiceToggle = useCallback(
     (enabled: boolean) => {

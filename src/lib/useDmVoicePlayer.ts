@@ -3,6 +3,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Message } from "@/lib/types";
 
+type QueueEntry = {
+  id: string;
+  text: string;
+  base64?: string;
+};
+
 function speakWithBrowser(text: string): Promise<void> {
   return new Promise((resolve, reject) => {
     if (typeof window === "undefined" || !window.speechSynthesis) {
@@ -19,6 +25,22 @@ function speakWithBrowser(text: string): Promise<void> {
   });
 }
 
+function playWavBlob(blob: Blob): Promise<void> {
+  const url = URL.createObjectURL(blob);
+  const audio = new Audio(url);
+  return new Promise<void>((resolve, reject) => {
+    audio.onended = () => {
+      URL.revokeObjectURL(url);
+      resolve();
+    };
+    audio.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Audio playback failed"));
+    };
+    void audio.play().catch(reject);
+  });
+}
+
 export function useDmVoicePlayer({
   campaignId,
   enabled,
@@ -30,7 +52,7 @@ export function useDmVoicePlayer({
 }) {
   const [speaking, setSpeaking] = useState(false);
   const spokenIdsRef = useRef(new Set<string>());
-  const queueRef = useRef<{ id: string; text: string }[]>([]);
+  const queueRef = useRef<QueueEntry[]>([]);
   const playingRef = useRef(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -54,8 +76,18 @@ export function useDmVoicePlayer({
   }, []);
 
   const playEntry = useCallback(
-    async (entry: { id: string; text: string }) => {
+    async (entry: QueueEntry) => {
       try {
+        if (entry.base64) {
+          const binary = atob(entry.base64);
+          const bytes = new Uint8Array(binary.length);
+          for (let i = 0; i < binary.length; i += 1) {
+            bytes[i] = binary.charCodeAt(i);
+          }
+          await playWavBlob(new Blob([bytes], { type: "audio/wav" }));
+          return;
+        }
+
         const res = await fetch("/api/dm/tts", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -63,21 +95,7 @@ export function useDmVoicePlayer({
         });
 
         if (res.ok) {
-          const blob = await res.blob();
-          const url = URL.createObjectURL(blob);
-          const audio = new Audio(url);
-          audioRef.current = audio;
-          await new Promise<void>((resolve, reject) => {
-            audio.onended = () => {
-              URL.revokeObjectURL(url);
-              resolve();
-            };
-            audio.onerror = () => {
-              URL.revokeObjectURL(url);
-              reject(new Error("Audio playback failed"));
-            };
-            void audio.play().catch(reject);
-          });
+          await playWavBlob(await res.blob());
           return;
         }
 
@@ -107,15 +125,31 @@ export function useDmVoicePlayer({
     }
   }, [playEntry]);
 
-  const enqueueDmMessage = useCallback(
-    (message: Message) => {
-      if (!enabled || message.sender_type !== "dm") return;
-      if (spokenIdsRef.current.has(message.id)) return;
-      spokenIdsRef.current.add(message.id);
-      queueRef.current.push({ id: message.id, text: message.content });
+  const enqueue = useCallback(
+    (entry: QueueEntry) => {
+      if (!enabled) return;
+      if (spokenIdsRef.current.has(entry.id)) return;
+      if (queueRef.current.some((queued) => queued.id === entry.id)) return;
+      spokenIdsRef.current.add(entry.id);
+      queueRef.current.push(entry);
       void drainQueue();
     },
     [enabled, drainQueue],
+  );
+
+  const playPreparedAudio = useCallback(
+    (messageId: string, audioWavBase64: string) => {
+      enqueue({ id: messageId, text: "", base64: audioWavBase64 });
+    },
+    [enqueue],
+  );
+
+  const enqueueDmMessage = useCallback(
+    (message: Message) => {
+      if (message.sender_type !== "dm") return;
+      enqueue({ id: message.id, text: message.content });
+    },
+    [enqueue],
   );
 
   useEffect(() => {
@@ -131,5 +165,5 @@ export function useDmVoicePlayer({
 
   useEffect(() => () => stopSpeaking(), [stopSpeaking]);
 
-  return { speaking, stopSpeaking };
+  return { speaking, stopSpeaking, playPreparedAudio };
 }
