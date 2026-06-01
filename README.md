@@ -80,8 +80,11 @@ cp .env.example .env.local
 NEXT_PUBLIC_SUPABASE_URL=https://xxxxxxxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 
-# Optional — enables the OpenAI-powered Dungeon Master.
-# Without it, a built-in offline DM narrates locally.
+# Optional — enables the AI Dungeon Master (Gemini or OpenAI).
+# Without any key, a built-in offline DM narrates locally.
+GOOGLE_GEMINI_API_KEY=AIza...
+GOOGLE_GEMINI_MODEL=gemini-2.0-flash
+
 OPENAI_API_KEY=sk-...
 OPENAI_MODEL=gpt-4o-mini
 ```

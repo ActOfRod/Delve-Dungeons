@@ -18,10 +18,76 @@ import type { Campaign, Character, DiceRoll, Message, PendingCheck } from "@/lib
 
 export const runtime = "nodejs";
 
+type DMGenerationMode = "opening" | "action" | "checkResult";
+
+function buildPromptMessages(
+  ctx: DMContext,
+  latestInput: string,
+  mode: DMGenerationMode,
+  checkResult?: CheckResultContext,
+): { role: "user" | "assistant"; content: string }[] {
+  const messages = [...buildTranscript(ctx)];
+  if (mode === "opening") {
+    messages.push({ role: "user", content: openingUserPrompt() });
+  } else if (mode === "checkResult" && checkResult) {
+    messages.push({
+      role: "user",
+      content: checkResultUserPrompt(checkResult),
+    });
+  } else if (latestInput) {
+    messages.push({ role: "user", content: latestInput });
+  }
+  return messages;
+}
+
+async function generateWithGemini(
+  ctx: DMContext,
+  latestInput: string,
+  mode: DMGenerationMode,
+  checkResult?: CheckResultContext,
+): Promise<string | null> {
+  const apiKey = process.env.GOOGLE_GEMINI_API_KEY;
+  if (!apiKey) return null;
+
+  const model = process.env.GOOGLE_GEMINI_MODEL || "gemini-2.0-flash";
+  const messages = buildPromptMessages(ctx, latestInput, mode, checkResult);
+  const contents = messages.map((message) => ({
+    role: message.role === "assistant" ? "model" : "user",
+    parts: [{ text: message.content }],
+  }));
+
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          systemInstruction: {
+            parts: [{ text: buildSystemPrompt(ctx) }],
+          },
+          contents,
+          generationConfig: {
+            temperature: 0.9,
+            maxOutputTokens: 500,
+          },
+        }),
+      },
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    const content: string | undefined =
+      data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    return content?.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
 async function generateWithOpenAI(
   ctx: DMContext,
   latestInput: string,
-  mode: "opening" | "action" | "checkResult",
+  mode: DMGenerationMode,
   checkResult?: CheckResultContext,
 ): Promise<string | null> {
   const apiKey = process.env.OPENAI_API_KEY;
@@ -30,15 +96,8 @@ async function generateWithOpenAI(
   const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
   const messages: { role: string; content: string }[] = [
     { role: "system", content: buildSystemPrompt(ctx) },
-    ...buildTranscript(ctx),
+    ...buildPromptMessages(ctx, latestInput, mode, checkResult),
   ];
-  if (mode === "opening") {
-    messages.push({ role: "user", content: openingUserPrompt() });
-  } else if (mode === "checkResult" && checkResult) {
-    messages.push({ role: "user", content: checkResultUserPrompt(checkResult) });
-  } else if (latestInput) {
-    messages.push({ role: "user", content: latestInput });
-  }
 
   try {
     const res = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -61,6 +120,18 @@ async function generateWithOpenAI(
   } catch {
     return null;
   }
+}
+
+async function generateWithAI(
+  ctx: DMContext,
+  latestInput: string,
+  mode: DMGenerationMode,
+  checkResult?: CheckResultContext,
+): Promise<string | null> {
+  return (
+    (await generateWithGemini(ctx, latestInput, mode, checkResult)) ??
+    (await generateWithOpenAI(ctx, latestInput, mode, checkResult))
+  );
 }
 
 export async function POST(request: Request) {
@@ -240,15 +311,15 @@ export async function POST(request: Request) {
   let generated: string;
   if (opening) {
     generated =
-      (await generateWithOpenAI(ctx, "", "opening")) ??
+      (await generateWithAI(ctx, "", "opening")) ??
       offlineOpeningNarration(ctx);
   } else if (resolvedCheck) {
     generated =
-      (await generateWithOpenAI(ctx, "", "checkResult", resolvedCheck)) ??
+      (await generateWithAI(ctx, "", "checkResult", resolvedCheck)) ??
       offlineCheckResultNarration(ctx, resolvedCheck);
   } else {
     generated =
-      (await generateWithOpenAI(ctx, lastPlayerLine, "action")) ??
+      (await generateWithAI(ctx, lastPlayerLine, "action")) ??
       offlineDMNarration(ctx, lastPlayerLine);
   }
 
