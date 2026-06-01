@@ -96,6 +96,34 @@ function pick<T>(arr: T[], seed: number): T {
   return arr[seed % arr.length];
 }
 
+const OPENING_USER_PROMPT =
+  "Begin the adventure. Set the opening scene based on the premise and setting. Introduce the situation the party faces as they arrive. Do not call for a skill check yet — end by inviting the heroes to act.";
+
+export function openingUserPrompt(): string {
+  return OPENING_USER_PROMPT;
+}
+
+export function offlineOpeningNarration(ctx: DMContext): string {
+  const seed =
+    (ctx.campaign.name?.length ?? 0) * 11 +
+    (ctx.campaign.description?.length ?? 0) * 3 +
+    ctx.party.length * 17;
+  const opener = pick(OPENERS, seed);
+  const atmosphere = pick(ATMOSPHERE, seed >> 2);
+  const who =
+    ctx.party.length > 1
+      ? "The party gathers"
+      : ctx.party[0]?.name
+        ? `${ctx.party[0].name} arrives`
+        : "You arrive";
+  const premise =
+    ctx.campaign.description?.trim() ||
+    ctx.campaign.setting?.trim() ||
+    "A new adventure beckons from the shadows.";
+
+  return `${opener} ${who} at the threshold of "${ctx.campaign.name}".\n\n${premise}\n\n${atmosphere}\n\n${pick(PROMPTS, seed >> 3)}`;
+}
+
 export function offlineDMNarration(
   ctx: DMContext,
   playerInput: string,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Campaign, CampaignMember, Character } from "@/lib/types";
@@ -35,6 +35,17 @@ export function DashboardClient({
   const [showJoin, setShowJoin] = useState(false);
   const [joinCode, setJoinCode] = useState("");
   const [inspecting, setInspecting] = useState<Character | null>(null);
+  const [campaignFormKey, setCampaignFormKey] = useState(0);
+
+  const busyCharacterIds = useMemo(
+    () =>
+      new Set(
+        campaigns
+          .map((e) => e.membership.character_id)
+          .filter((id): id is string => id != null),
+      ),
+    [campaigns],
+  );
 
   // Open the join modal pre-filled when arriving from a campaign invite.
   useEffect(() => {
@@ -51,8 +62,8 @@ export function DashboardClient({
   }, []);
 
   function handleDeleteCampaign(entry: CampaignEntry) {
-    const owner = entry.membership.role === "dm";
-    const msg = owner
+    const isCampaignOwner = entry.campaign.owner_id === currentUserId;
+    const msg = isCampaignOwner
       ? `Close "${entry.campaign.name}"? This deletes it for everyone and notifies the other players.`
       : `Leave "${entry.campaign.name}"?`;
     if (!window.confirm(msg)) return;
@@ -92,7 +103,10 @@ export function DashboardClient({
               Join with code
             </button>
             <button
-              onClick={() => setShowCampaign(true)}
+              onClick={() => {
+                setCampaignFormKey((k) => k + 1);
+                setShowCampaign(true);
+              }}
               className="rounded-full bg-gradient-to-r from-arcane to-arcane-bright px-4 py-2 text-sm font-medium text-ink transition hover:scale-[1.02]"
             >
               + New campaign
@@ -112,6 +126,7 @@ export function DashboardClient({
               <CampaignCard
                 key={entry.campaign.id}
                 entry={entry}
+                currentUserId={currentUserId}
                 onDelete={() => handleDeleteCampaign(entry)}
               />
             ))}
@@ -170,7 +185,9 @@ export function DashboardClient({
         title="New campaign"
       >
         <CampaignForm
+          key={campaignFormKey}
           characters={characters}
+          busyCharacterIds={busyCharacterIds}
           friends={friends}
           onDone={() => setShowCampaign(false)}
         />
@@ -195,13 +212,16 @@ export function DashboardClient({
 
 function CampaignCard({
   entry,
+  currentUserId,
   onDelete,
 }: {
   entry: CampaignEntry;
+  currentUserId: string;
   onDelete: () => void;
 }) {
   const { campaign, membership } = entry;
-  const isOwner = membership.role === "dm";
+  const isCampaignOwner = campaign.owner_id === currentUserId;
+  const isHumanGm = membership.role === "dm";
 
   function copyCode() {
     navigator.clipboard?.writeText(campaign.invite_code);
@@ -217,7 +237,7 @@ function CampaignCard({
       <div className="pointer-events-none relative">
         <div className="flex items-center justify-between gap-2 pr-9">
           <span className="rounded-full bg-arcane/15 px-2.5 py-0.5 text-xs uppercase tracking-wide text-arcane-bright">
-            {isOwner ? "Game Master" : "Player"}
+            {isHumanGm ? "Game Master" : "Player"}
           </span>
           <span className="font-mono text-xs text-parchment/40">
             {campaign.invite_code}
@@ -234,7 +254,7 @@ function CampaignCard({
         <KebabMenu
           items={[
             { label: "Copy invite code", onClick: copyCode },
-            isOwner
+            isCampaignOwner
               ? { label: "Close campaign", onClick: onDelete, danger: true }
               : { label: "Leave campaign", onClick: onDelete, danger: true },
           ]}

@@ -138,6 +138,9 @@ export async function requestCheck(
 ): Promise<{ error?: string }> {
   const ctx = await requireMember(campaignId);
   if ("error" in ctx) return { error: ctx.error };
+  if (ctx.membership.role !== "dm") {
+    return { error: "Only the Game Master can request checks." };
+  }
 
   const { error } = await ctx.supabase
     .from("campaigns")

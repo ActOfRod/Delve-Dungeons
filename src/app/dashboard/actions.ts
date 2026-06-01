@@ -106,6 +106,8 @@ export async function createCampaign(
       owner_id: user.id,
       invite_code: inviteCode,
       status: "active",
+      // When bringing a hero, the AI runs the table — spotlight starts on you.
+      active_character_id: characterId || null,
     })
     .select()
     .single();
@@ -118,7 +120,8 @@ export async function createCampaign(
     campaign_id: campaign.id,
     user_id: user.id,
     character_id: characterId || null,
-    role: "dm",
+    // Hero at the table → player; GM-only → human runs DM tools.
+    role: characterId ? "player" : "dm",
     turn_order: 0,
   });
 

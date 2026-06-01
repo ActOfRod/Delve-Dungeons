@@ -11,6 +11,7 @@ export function MessageFeed({
   onSend,
   onTyping,
   canSpeak,
+  awaitingOpening = false,
 }: {
   messages: Message[];
   currentUserId: string;
@@ -19,6 +20,7 @@ export function MessageFeed({
   onSend: (text: string) => Promise<void>;
   onTyping: (isResponding: boolean) => void;
   canSpeak: boolean;
+  awaitingOpening?: boolean;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const typingTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -61,8 +63,9 @@ export function MessageFeed({
         {messages.length === 0 && (
           <div className="flex h-full items-center justify-center text-center">
             <p className="max-w-sm text-sm text-parchment/50">
-              The story has not yet begun. Describe what your hero does, and the
-              Dungeon Master will set the scene.
+              {awaitingOpening || dmThinking
+                ? "The Dungeon Master is setting the scene…"
+                : "The story has not yet begun. Describe what your hero does, and the Dungeon Master will respond."}
             </p>
           </div>
         )}
