@@ -8,11 +8,13 @@ export function Modal({
   onClose,
   title,
   children,
+  wide = false,
 }: {
   open: boolean;
   onClose: () => void;
   title: string;
   children: React.ReactNode;
+  wide?: boolean;
 }) {
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -36,7 +38,11 @@ export function Modal({
         onClick={onClose}
         aria-hidden
       />
-      <div className="dd-fade-up dd-panel relative z-10 max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl p-6 shadow-2xl">
+      <div
+        className={`dd-fade-up dd-panel relative z-10 max-h-[90vh] w-full overflow-y-auto rounded-2xl p-6 shadow-2xl ${
+          wide ? "max-w-2xl" : "max-w-lg"
+        }`}
+      >
         <div className="mb-4 flex items-center justify-between">
           <h2 className="font-display text-xl text-gold">{title}</h2>
           <button

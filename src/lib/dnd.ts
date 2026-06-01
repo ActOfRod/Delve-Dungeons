@@ -177,7 +177,242 @@ const HIT_DIE_BY_CLASS: Partial<Record<CharacterClass, number>> = {
   Warlock: 8,
   Sorcerer: 6,
   Wizard: 6,
+  Wizard: 6,
 };
+
+export const STANDARD_ARRAY_VALUES = [15, 14, 13, 12, 10, 8] as const;
+
+export type AbilityGenMethod = "pointbuy" | "standard" | "roll";
+
+export const POINT_BUY_TOTAL = 27;
+export const POINT_BUY_MIN = 8;
+export const POINT_BUY_MAX = 15;
+
+export const POINT_BUY_COST: Record<number, number> = {
+  8: 0,
+  9: 1,
+  10: 2,
+  11: 3,
+  12: 4,
+  13: 5,
+  14: 7,
+  15: 9,
+};
+
+export interface BackgroundDefinition {
+  name: string;
+  skills: [string, string];
+  tools: string;
+  feature: string;
+}
+
+export const BACKGROUNDS: BackgroundDefinition[] = [
+  { name: "Acolyte", skills: ["Insight", "Religion"], tools: "Holy symbol", feature: "Shelter of the Faithful" },
+  { name: "Charlatan", skills: ["Deception", "Sleight of Hand"], tools: "Disguise kit, forgery kit", feature: "False Identity" },
+  { name: "Criminal", skills: ["Deception", "Stealth"], tools: "Thieves' tools, gaming set", feature: "Criminal Contact" },
+  { name: "Entertainer", skills: ["Acrobatics", "Performance"], tools: "Musical instrument", feature: "By Popular Demand" },
+  { name: "Folk Hero", skills: ["Animal Handling", "Survival"], tools: "Artisan's tools, vehicles (land)", feature: "Rustic Hospitality" },
+  { name: "Guild Artisan", skills: ["Insight", "Persuasion"], tools: "Artisan's tools", feature: "Guild Membership" },
+  { name: "Hermit", skills: ["Medicine", "Religion"], tools: "Herbalism kit", feature: "Discovery" },
+  { name: "Noble", skills: ["History", "Persuasion"], tools: "Gaming set", feature: "Position of Privilege" },
+  { name: "Outlander", skills: ["Athletics", "Survival"], tools: "Musical instrument", feature: "Wanderer" },
+  { name: "Sage", skills: ["Arcana", "History"], tools: "Two languages", feature: "Researcher" },
+  { name: "Sailor", skills: ["Athletics", "Perception"], tools: "Navigator's tools, vehicles (water)", feature: "Ship's Passage" },
+  { name: "Soldier", skills: ["Athletics", "Intimidation"], tools: "Gaming set, vehicles (land)", feature: "Military Rank" },
+  { name: "Urchin", skills: ["Sleight of Hand", "Stealth"], tools: "Disguise kit, thieves' tools", feature: "City Secrets" },
+];
+
+export function getBackground(name: string): BackgroundDefinition | undefined {
+  return BACKGROUNDS.find((b) => b.name === name);
+}
+
+export function pointBuySpent(scores: AbilityScores): number {
+  return ABILITIES.reduce(
+    (sum, ability) => sum + (POINT_BUY_COST[scores[ability.key]] ?? 99),
+    0,
+  );
+}
+
+export function isValidPointBuy(scores: AbilityScores): boolean {
+  for (const ability of ABILITIES) {
+    const score = scores[ability.key];
+    if (score < POINT_BUY_MIN || score > POINT_BUY_MAX) return false;
+    if (!(score in POINT_BUY_COST)) return false;
+  }
+  return pointBuySpent(scores) <= POINT_BUY_TOTAL;
+}
+
+export function isValidStandardArray(scores: AbilityScores): boolean {
+  const got = ABILITIES.map((a) => scores[a.key]).sort((a, b) => b - a);
+  if (got.some((value) => value < 1)) return false;
+  const want = [...STANDARD_ARRAY_VALUES].sort((a, b) => b - a);
+  return got.every((value, index) => value === want[index]);
+}
+
+export function isValidRolledArray(scores: AbilityScores, pool: number[]): boolean {
+  if (pool.length !== 6) return false;
+  const got = ABILITIES.map((a) => scores[a.key]).sort((a, b) => b - a);
+  const want = [...pool].sort((a, b) => b - a);
+  return got.every((value, index) => value === want[index]);
+}
+  const got = ABILITIES.map((a) => scores[a.key]).sort((a, b) => b - a);
+  if (got.some((value) => value < 1)) return false;
+  const want = [...STANDARD_ARRAY_VALUES].sort((a, b) => b - a);
+  return got.every((value, index) => value === want[index]);
+}
+
+export function rollFourDropLowest(): number {
+  const rolls = [rollDie("d6"), rollDie("d6"), rollDie("d6"), rollDie("d6")];
+  rolls.sort((a, b) => b - a);
+  return rolls[0] + rolls[1] + rolls[2];
+}
+
+export function rollAbilityScoreSet(): number[] {
+  return Array.from({ length: 6 }, () => rollFourDropLowest());
+}
+
+export function getRacialBonuses(
+  race: string,
+  halfElfChoices?: [AbilityKey, AbilityKey],
+): Partial<AbilityScores> {
+  switch (race) {
+    case "Human":
+      return { str: 1, dex: 1, con: 1, int: 1, wis: 1, cha: 1 };
+    case "Elf":
+      return { dex: 2 };
+    case "Dwarf":
+      return { con: 2 };
+    case "Halfling":
+      return { dex: 2 };
+    case "Dragonborn":
+      return { str: 2, cha: 1 };
+    case "Gnome":
+      return { int: 2 };
+    case "Half-Elf": {
+      const bonuses: Partial<AbilityScores> = { cha: 2 };
+      if (halfElfChoices) {
+        for (const key of halfElfChoices) {
+          bonuses[key] = (bonuses[key] ?? 0) + 1;
+        }
+      }
+      return bonuses;
+    }
+    case "Half-Orc":
+      return { str: 2, con: 1 };
+    case "Tiefling":
+      return { cha: 2, int: 1 };
+    default:
+      return {};
+  }
+}
+
+export function applyRacialBonuses(
+  base: AbilityScores,
+  race: string,
+  halfElfChoices?: [AbilityKey, AbilityKey],
+): AbilityScores {
+  const bonuses = getRacialBonuses(race, halfElfChoices);
+  const final = { ...base };
+  for (const ability of ABILITIES) {
+    final[ability.key] = Math.min(20, base[ability.key] + (bonuses[ability.key] ?? 0));
+  }
+  return final;
+}
+
+export function unarmoredAc(dex: number): number {
+  return 10 + abilityModifier(dex);
+}
+
+const STARTING_GOLD_FORMULA: Partial<
+  Record<CharacterClass, { dice: number; sides: number; multiplier: number }>
+> = {
+  Barbarian: { dice: 2, sides: 4, multiplier: 10 },
+  Bard: { dice: 5, sides: 4, multiplier: 10 },
+  Cleric: { dice: 5, sides: 4, multiplier: 10 },
+  Druid: { dice: 2, sides: 4, multiplier: 10 },
+  Fighter: { dice: 5, sides: 4, multiplier: 10 },
+  Monk: { dice: 5, sides: 4, multiplier: 1 },
+  Paladin: { dice: 5, sides: 4, multiplier: 10 },
+  Ranger: { dice: 5, sides: 4, multiplier: 10 },
+  Rogue: { dice: 4, sides: 4, multiplier: 10 },
+  Sorcerer: { dice: 3, sides: 4, multiplier: 10 },
+  Warlock: { dice: 4, sides: 4, multiplier: 10 },
+  Wizard: { dice: 4, sides: 4, multiplier: 10 },
+};
+
+export function rollStartingGold(cls: string): { gp: number; notation: string } {
+  const formula = STARTING_GOLD_FORMULA[cls as CharacterClass] ?? {
+    dice: 4,
+    sides: 4,
+    multiplier: 10,
+  };
+  const rolls: number[] = [];
+  for (let i = 0; i < formula.dice; i += 1) {
+    rolls.push(randomInt(formula.sides) + 1);
+  }
+  const gp = rolls.reduce((a, b) => a + b, 0) * formula.multiplier;
+  const notation =
+    formula.multiplier === 1
+      ? `${formula.dice}d${formula.sides}`
+      : `${formula.dice}d${formula.sides} × ${formula.multiplier}`;
+  return { gp, notation: `${notation} = ${gp} gp` };
+}
+
+const CLASS_STARTER_KITS: Partial<Record<CharacterClass, string[]>> = {
+  Barbarian: ["Greataxe or martial weapon", "Two handaxes", "Explorer's pack", "Four javelins"],
+  Bard: ["Rapier or longsword", "Diplomat's pack or entertainer's pack", "Lute or musical instrument", "Leather armor, dagger"],
+  Cleric: ["Mace or warhammer", "Scale mail or leather armor", "Light crossbow", "Priest's pack", "Shield, holy symbol"],
+  Druid: ["Wooden shield", "Scimitar", "Leather armor", "Explorer's pack", "Druidic focus"],
+  Fighter: ["Chain mail or leather armor", "Martial weapon and shield", "Light crossbow", "Dungeoneer's pack"],
+  Monk: ["Shortsword", "Dungeoneer's pack", "Ten darts"],
+  Paladin: ["Martial weapon and shield", "Five javelins", "Priest's pack", "Chain mail", "Holy symbol"],
+  Ranger: ["Scale mail or leather armor", "Two shortswords", "Dungeoneer's pack", "Longbow and quiver"],
+  Rogue: ["Rapier or shortsword", "Shortbow", "Burglar's pack or dungeoneer's pack", "Leather armor, two daggers, thieves' tools"],
+  Sorcerer: ["Light crossbow", "Component pouch or arcane focus", "Dungeoneer's pack", "Two daggers"],
+  Warlock: ["Light crossbow", "Component pouch or arcane focus", "Scholar's pack", "Leather armor, dagger"],
+  Wizard: ["Quarterstaff or dagger", "Component pouch or arcane focus", "Scholar's pack", "Spellbook"],
+};
+
+export function classStarterKit(cls: string): string[] {
+  return CLASS_STARTER_KITS[cls as CharacterClass] ?? ["Basic adventuring gear"];
+}
+
+export function buildStartingInventory(
+  cls: string,
+  background: string,
+  option: "kit" | "wealth",
+  goldRoll?: { gp: number; notation: string },
+): { name: string; quantity: number; description?: string }[] {
+  const bg = getBackground(background);
+  const items: { name: string; quantity: number; description?: string }[] = [];
+
+  if (option === "wealth" && goldRoll) {
+    items.push({
+      name: "Gold pieces",
+      quantity: goldRoll.gp,
+      description: `Rolled ${goldRoll.notation}`,
+    });
+  } else {
+    for (const entry of classStarterKit(cls)) {
+      items.push({ name: entry, quantity: 1 });
+    }
+  }
+
+  if (bg) {
+    items.push({
+      name: `${bg.name} feature`,
+      quantity: 1,
+      description: bg.feature,
+    });
+    items.push({
+      name: "Background proficiencies",
+      quantity: 1,
+      description: `${bg.skills.join(", ")} · ${bg.tools}`,
+    });
+  }
+
+  return items;
+}
 
 // Reasonable starting HP for a freshly created character.
 export function startingHp(cls: string, con: number): number {
