@@ -93,7 +93,17 @@ const CHECK_SKILLS = [
 ];
 
 function pick<T>(arr: T[], seed: number): T {
-  return arr[seed % arr.length];
+  const index = ((Math.trunc(seed) % arr.length) + arr.length) % arr.length;
+  return arr[index]!;
+}
+
+function narrationSeed(playerInput: string, messageCount: number): number {
+  // Avoid bitwise shifts on Date.now() — they wrap at 32 bits and break indexing.
+  return (
+    playerInput.length * 31 +
+    messageCount * 17 +
+    (Date.now() % 1_000_000_007)
+  );
 }
 
 const OPENING_USER_PROMPT =
@@ -109,7 +119,7 @@ export function offlineOpeningNarration(ctx: DMContext): string {
     (ctx.campaign.description?.length ?? 0) * 3 +
     ctx.party.length * 17;
   const opener = pick(OPENERS, seed);
-  const atmosphere = pick(ATMOSPHERE, seed >> 2);
+  const atmosphere = pick(ATMOSPHERE, seed + 1);
   const who =
     ctx.party.length > 1
       ? "The party gathers"
@@ -121,18 +131,17 @@ export function offlineOpeningNarration(ctx: DMContext): string {
     ctx.campaign.setting?.trim() ||
     "A new adventure beckons from the shadows.";
 
-  return `${opener} ${who} at the threshold of "${ctx.campaign.name}".\n\n${premise}\n\n${atmosphere}\n\n${pick(PROMPTS, seed >> 3)}`;
+  return `${opener} ${who} at the threshold of "${ctx.campaign.name}".\n\n${premise}\n\n${atmosphere}\n\n${pick(PROMPTS, seed + 2)}`;
 }
 
 export function offlineDMNarration(
   ctx: DMContext,
   playerInput: string,
 ): string {
-  const seed =
-    playerInput.length + (ctx.recentMessages.length || 1) * 7 + Date.now();
+  const seed = narrationSeed(playerInput, ctx.recentMessages.length || 1);
   const opener = pick(OPENERS, seed);
   const who = ctx.activeCharacterName || ctx.party[0]?.name || "the party";
-  const atmosphere = pick(ATMOSPHERE, seed >> 2);
+  const atmosphere = pick(ATMOSPHERE, seed + 1);
   const echo = playerInput
     ? `You ${playerInput.replace(/^I\s+/i, "").replace(/[.!?]$/, "")}.`
     : "You steady yourselves and take stock of the room.";
@@ -142,10 +151,10 @@ export function offlineDMNarration(
   // Roughly every third beat, call for a check to demonstrate the mechanic.
   const shouldCheck = seed % 3 === 0;
   if (shouldCheck) {
-    const c = pick(CHECK_SKILLS, seed >> 4);
+    const c = pick(CHECK_SKILLS, seed + 2);
     body += `\n\nSomething here demands closer attention.\n[CHECK: ${c.skill} | DC ${c.dc}]`;
   } else {
-    body += `\n\n${pick(PROMPTS, seed >> 3)}`;
+    body += `\n\n${pick(PROMPTS, seed + 3)}`;
   }
   return body;
 }

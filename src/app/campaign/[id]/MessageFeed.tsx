@@ -148,7 +148,7 @@ function MessageBubble({
         <div className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-arcane-bright">
           <span>✦ Dungeon Master</span>
         </div>
-        <p className="whitespace-pre-wrap font-display text-[15px] leading-relaxed text-parchment/90">
+        <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-parchment/90">
           {message.content}
         </p>
       </div>
