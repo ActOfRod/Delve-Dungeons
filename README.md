@@ -53,10 +53,11 @@ npm install
 ### 2. Create a Supabase project
 
 1. Create a project at [supabase.com](https://supabase.com).
-2. Open the **SQL Editor** and run the contents of
-   [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql). This
-   creates all tables, row-level-security policies, the new-user trigger, and the
-   realtime publication.
+2. Open the **SQL Editor** and run each migration in
+   [`supabase/migrations/`](supabase/migrations) in order:
+   - `0001_init.sql` — core tables, RLS policies, the new-user trigger, realtime.
+   - `0002_social.sql` — friend codes, friendships, notifications, and character
+     inventory (plus their RLS + realtime).
 3. _(Recommended for quick testing)_ Under **Authentication → Providers → Email**,
    you can disable "Confirm email" so new accounts can sign in immediately.
 

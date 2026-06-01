@@ -8,6 +8,48 @@ export interface Profile {
   id: string;
   username: string | null;
   display_name: string | null;
+  friend_code: string | null;
+  created_at: string;
+}
+
+export interface InventoryItem {
+  id?: string;
+  name: string;
+  quantity: number;
+  description?: string;
+}
+
+export type FriendshipStatus = "pending" | "accepted" | "declined";
+
+export interface Friendship {
+  id: string;
+  requester_id: string;
+  addressee_id: string;
+  status: FriendshipStatus;
+  created_at: string;
+  responded_at: string | null;
+  // Optional embedded profiles.
+  requester?: Profile | null;
+  addressee?: Profile | null;
+}
+
+export type NotificationType =
+  | "friend_request"
+  | "friend_accepted"
+  | "campaign_invite"
+  | "campaign_turn"
+  | "campaign_joined"
+  | "campaign_closed"
+  | "system";
+
+export interface AppNotification {
+  id: string;
+  user_id: string;
+  type: NotificationType;
+  title: string;
+  body: string | null;
+  data: Record<string, unknown>;
+  read: boolean;
   created_at: string;
 }
 
@@ -24,6 +66,7 @@ export interface Character {
   armor_class: number;
   background: string | null;
   bio: string | null;
+  inventory: InventoryItem[];
   created_at: string;
 }
 

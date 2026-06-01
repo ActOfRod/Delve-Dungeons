@@ -12,6 +12,7 @@ import Link from "next/link";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { Logo } from "@/components/Logo";
+import { NotificationBell } from "@/components/NotificationBell";
 import type {
   Campaign,
   CampaignMember,
@@ -344,6 +345,7 @@ export function CampaignRoom({
             <span className="rounded-full border border-gold/20 px-3 py-1 font-mono text-xs text-gold">
               {campaign.invite_code}
             </span>
+            <NotificationBell userId={currentUserId} />
           </div>
         </div>
       </header>
