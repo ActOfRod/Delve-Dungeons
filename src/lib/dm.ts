@@ -65,7 +65,7 @@ export function parseCheckDirective(
 }
 
 const OPENING_USER_PROMPT =
-  "Begin the adventure. Set the opening scene based on the premise and setting. Introduce the situation the party faces as they arrive. Do not call for a skill check yet — end by inviting the heroes to act.";
+  "Begin the adventure at the START of the story — wherever the heroes are when the action first opens, not at a later destination. Use the premise for context but do not quote DM instructions from it (e.g. 'Begin by…', 'Open as…', 'lead them to…'). Set one vivid scene, establish the hook, and invite the heroes to act. Do not call for a skill check yet.";
 
 export function openingUserPrompt(): string {
   return OPENING_USER_PROMPT;
@@ -80,15 +80,6 @@ export function checkResultUserPrompt(result: CheckResultContext): string {
 // is fully playable out of the box.
 // ---------------------------------------------------------------------------
 type CampaignTheme = "crypt" | "road" | "crown" | "generic";
-
-const OPENERS = [
-  "The torchlight gutters as",
-  "A hush falls over the chamber while",
-  "Somewhere in the dark,",
-  "The air grows cold the moment",
-  "Dust drifts through a shaft of pale light as",
-  "Your heart pounds in your ears as",
-];
 
 const PROMPTS = [
   "What do you do?",
@@ -316,6 +307,136 @@ function inferTheme(ctx: DMContext): CampaignTheme {
   return "generic";
 }
 
+const GM_INSTRUCTION =
+  /\b(begin by|begin in|open as|start by|start in|lead them|introduce the heroes|then lead)\b/i;
+
+const SCENE_CUE =
+  /\b(party gathers|you gather|you stand|you sit|you arrive|you find yourselves|summoned to|caravan rolls|rolls out at|throne room|tavern|at dawn|at the .+ tavern)\b/i;
+
+interface ParsedPremise {
+  hook: string;
+  scene: string;
+}
+
+/** Split premise text into player-facing hook + starting scene (works for any campaign). */
+function parseCampaignPremise(ctx: DMContext): ParsedPremise {
+  const raw = ctx.campaign.description?.trim() ?? "";
+  const setting = ctx.campaign.setting?.trim() ?? "";
+
+  if (!raw) {
+    return {
+      hook: setting
+        ? `${setting}. The adventure "${ctx.campaign.name}" begins.`
+        : `Rumors of "${ctx.campaign.name}" have drawn you in — the truth waits to be uncovered.`,
+      scene: "You take your first look at the situation, senses sharp, options open.",
+    };
+  }
+
+  const sentences = raw.split(/(?<=[.!?])\s+/).map((s) => s.trim()).filter(Boolean);
+  const hookParts: string[] = [];
+  let scene = "";
+
+  for (const sentence of sentences) {
+    if (GM_INSTRUCTION.test(sentence)) {
+      if (
+        !scene &&
+        /^(?:Open as|Begin in|Start in|The party gathers)/i.test(sentence)
+      ) {
+        scene = cleanSceneSentence(sentence);
+        continue;
+      }
+
+      const beforeInstruction = sentence
+        .split(/\.\s*(?:Begin|Open as|Start by|Start in|Then lead)/i)[0]
+        ?.trim();
+      if (beforeInstruction && SCENE_CUE.test(beforeInstruction) && !scene) {
+        scene = cleanSceneSentence(beforeInstruction);
+      }
+      continue;
+    }
+
+    if (SCENE_CUE.test(sentence) && !scene) {
+      scene = cleanSceneSentence(sentence);
+      continue;
+    }
+
+    hookParts.push(sentence);
+  }
+
+  const hook = hookParts.slice(0, 2).join(" ");
+  if (!scene) {
+    scene = defaultOpeningScene(inferTheme(ctx), ctx.party);
+  }
+
+  return { hook, scene };
+}
+
+function cleanSceneSentence(sentence: string): string {
+  let s = sentence.trim();
+  s = s.replace(/\.\s*(Begin|Open as|Start by|Start in|Then lead)[^.]*$/i, ".");
+  s = s.replace(/,\s*then lead[^.]*$/i, "");
+
+  const replacements: [RegExp, string][] = [
+    [/^The party gathers/i, "You gather"],
+    [/^Open as /i, ""],
+    [/^Begin in /i, "You are in "],
+    [/^Start in /i, "You are in "],
+    [/^Summoned to /i, "You have been summoned to "],
+  ];
+  for (const [pattern, replacement] of replacements) {
+    if (pattern.test(s)) {
+      s = s.replace(pattern, replacement);
+      break;
+    }
+  }
+
+  if (!/^You\b/i.test(s)) {
+    s = `You are there: ${s.charAt(0).toLowerCase()}${s.slice(1)}`;
+  }
+
+  if (!/[.!?]$/.test(s)) s += ".";
+  return s;
+}
+
+function defaultOpeningScene(
+  theme: CampaignTheme,
+  party: DMContext["party"],
+): string {
+  const group =
+    party.length > 1
+      ? "You and your companions stand together"
+      : "You stand alone";
+  const beats: Record<CampaignTheme, string> = {
+    crypt: `${group} at the edge of somewhere best left sealed — yet here you are.`,
+    road: `${group} on the road, the horizon wide and the reason for your journey clear enough to keep walking.`,
+    crown: `${group} where duty and danger both demand an answer.`,
+    generic: `${group}, ready to act, the story waiting for your first move.`,
+  };
+  return beats[theme];
+}
+
+function openingLead(theme: CampaignTheme, seed: number): string {
+  const leads: Record<CampaignTheme, string[]> = {
+    crypt: [
+      "Rain or torch-smoke, the air already tastes of trouble.",
+      "The dead have been restless, and the living are afraid to say it aloud.",
+    ],
+    road: [
+      "The road ahead promises miles, risk, and answers in equal measure.",
+      "Something has gone wrong out here — you can feel it before you see it.",
+    ],
+    crown: [
+      "The realm holds its breath; great matters turn on what you do next.",
+      "Power and peril share the same hallways tonight.",
+    ],
+    generic: [
+      "Adventure begins the way most do — with a problem too large to ignore.",
+      "The scene is set; the stakes are real.",
+    ],
+  };
+  return pick(leads[theme], seed);
+}
+
 function actionCategory(input: string): keyof typeof ACTION_REACTIONS {
   const lower = input.toLowerCase();
   if (
@@ -374,19 +495,12 @@ export function offlineOpeningNarration(ctx: DMContext): string {
     (ctx.campaign.name?.length ?? 0) * 11 +
     (ctx.campaign.description?.length ?? 0) * 3 +
     ctx.party.length * 17;
+  const { hook, scene } = parseCampaignPremise(ctx);
   const atmosphere = pick(THEME_ATMOSPHERE[theme], seed + 1);
-  const who =
-    ctx.party.length > 1
-      ? "The party gathers"
-      : ctx.party[0]?.name
-        ? `${ctx.party[0].name} arrives`
-        : "You arrive";
-  const premise =
-    ctx.campaign.description?.trim() ||
-    ctx.campaign.setting?.trim() ||
-    "A new adventure beckons from the shadows.";
+  const lead = openingLead(theme, seed);
 
-  return `${pick(OPENERS, seed)} ${who} at the threshold of "${ctx.campaign.name}".\n\n${premise}\n\n${atmosphere}\n\n${pick(PROMPTS, seed + 2)}`;
+  const parts = [`${lead}\n\n${hook}`, scene, atmosphere, pick(PROMPTS, seed + 2)];
+  return parts.filter(Boolean).join("\n\n");
 }
 
 export function offlineCheckResultNarration(
