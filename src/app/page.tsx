@@ -53,15 +53,19 @@ export default function Home() {
             href="/login"
             className="rounded-full bg-gradient-to-r from-ember to-ember-bright px-8 py-3 font-medium text-ink shadow-lg shadow-ember/30 transition hover:scale-[1.02]"
           >
-            Begin your delve
+            Sign in
           </Link>
           <Link
-            href="/login"
+            href="/login?mode=signup"
             className="rounded-full border border-gold/30 px-8 py-3 font-medium text-parchment transition hover:border-gold/60 hover:bg-gold/10"
           >
             I have an invite code
           </Link>
         </div>
+        <p className="mt-4 text-sm text-parchment/45">
+          Delve Dungeons is invite-only while we test. Ask a current player for a
+          code.
+        </p>
       </section>
 
       <section className="mx-auto grid max-w-5xl gap-5 px-6 pb-24 sm:grid-cols-3">

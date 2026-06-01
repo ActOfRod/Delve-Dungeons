@@ -58,6 +58,10 @@ npm install
    - `0001_init.sql` — core tables, RLS policies, the new-user trigger, realtime.
    - `0002_social.sql` — friend codes, friendships, notifications, and character
      inventory (plus their RLS + realtime).
+   - `0003_invites.sql` — invite-only sign-up: an `invite_codes` table and a
+     trigger that requires a valid code to create an account. To re-open public
+     sign-ups later, drop the trigger:
+     `drop trigger if exists on_auth_user_invite on auth.users;`
 3. _(Recommended for quick testing)_ Under **Authentication → Providers → Email**,
    you can disable "Confirm email" so new accounts can sign in immediately.
 
