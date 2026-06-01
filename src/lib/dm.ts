@@ -89,7 +89,7 @@ const PROMPTS = [
   "What is your next move?",
 ];
 
-const PROMPTS = [
+const THEME_ATMOSPHERE: Record<CampaignTheme, string[]> = {
   crypt: [
     "Damp stone sweats beneath your boots; the air tastes of turned earth and old prayers.",
     "Somewhere below, chains whisper against rock — or perhaps it is only the wind lying.",
