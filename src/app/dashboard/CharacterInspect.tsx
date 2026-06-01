@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Modal } from "@/components/Modal";
 import { createClient } from "@/lib/supabase/client";
 import type { Character, InventoryItem } from "@/lib/types";
-import { ABILITIES, abilityModifier, formatModifier } from "@/lib/dnd";
+import { ABILITIES, abilityModifier, formatModifier, getBackground, proficiencyBonus } from "@/lib/dnd";
 
 interface CampaignRef {
   id: string;
@@ -48,6 +48,7 @@ export function CharacterInspect({
   if (!character) return null;
 
   const inventory = (character.inventory ?? []) as InventoryItem[];
+  const bgDef = character.background ? getBackground(character.background) : undefined;
   const hpPct = Math.max(
     0,
     Math.min(100, Math.round((character.current_hp / character.max_hp) * 100)),
@@ -56,13 +57,18 @@ export function CharacterInspect({
   return (
     <Modal open={!!character} onClose={onClose} title={character.name}>
       <div className="space-y-5">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-sm text-parchment/70">
             Level {character.level} {character.race} {character.klass}
           </p>
+          <div className="flex gap-2">
           <span className="rounded-lg border border-gold/25 px-2.5 py-1 text-xs text-gold">
             AC {character.armor_class}
           </span>
+          <span className="rounded-lg border border-gold/25 px-2.5 py-1 text-xs text-gold">
+            Prof {formatModifier(proficiencyBonus(character.level))}
+          </span>
+          </div>
         </div>
 
         {/* HP bar */}
@@ -116,6 +122,11 @@ export function CharacterInspect({
                 <span className="text-parchment/80">{character.background}</span>
               </p>
             )}
+            {bgDef && (
+              <p className="mt-1 text-xs text-parchment/45">
+                Skills: {bgDef.skills.join(", ")} · {bgDef.tools} · {bgDef.feature}
+              </p>
+            )}
             {character.bio && (
               <p className="mt-1 text-sm italic text-parchment/70">
                 “{character.bio}”
@@ -158,9 +169,7 @@ export function CharacterInspect({
             Inventory
           </div>
           {inventory.length === 0 ? (
-            <p className="text-sm text-parchment/40">
-              No items yet — item trading between friends is coming soon.
-            </p>
+            <p className="text-sm text-parchment/40">No starting gear recorded.</p>
           ) : (
             <div className="space-y-1.5">
               {inventory.map((item, i) => (

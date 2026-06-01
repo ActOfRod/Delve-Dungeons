@@ -4,10 +4,22 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import {
-  DEFAULT_ABILITIES,
+  ABILITIES,
+  BACKGROUNDS,
+  CLASSES,
+  RACES,
+  applyRacialBonuses,
+  buildStartingInventory,
   generateInviteCode,
+  getRacialBonuses,
+  isValidPointBuy,
+  isValidRolledArray,
+  isValidStandardArray,
   startingHp,
+  unarmoredAc,
+  type AbilityGenMethod,
   type AbilityKey,
+  type AbilityScores,
 } from "@/lib/dnd";
 
 async function requireUser() {
@@ -32,18 +44,81 @@ export async function createCharacter(
   const klass = String(formData.get("klass") || "Fighter");
   const background = String(formData.get("background") || "").trim();
   const bio = String(formData.get("bio") || "").trim();
+  const method = String(formData.get("ability_method") || "pointbuy") as AbilityGenMethod;
+  const equipmentOption = String(formData.get("equipment_option") || "kit") as
+    | "kit"
+    | "wealth";
 
   if (!name) return { error: "Your hero needs a name." };
+  if (!RACES.includes(race as (typeof RACES)[number])) {
+    return { error: "Pick a valid race." };
+  }
+  if (!CLASSES.includes(klass as (typeof CLASSES)[number])) {
+    return { error: "Pick a valid class." };
+  }
+  if (!BACKGROUNDS.some((b) => b.name === background)) {
+    return { error: "Pick a valid background." };
+  }
 
-  const abilities = { ...DEFAULT_ABILITIES };
-  for (const key of Object.keys(abilities) as AbilityKey[]) {
-    const raw = Number(formData.get(`ability_${key}`));
-    if (!Number.isNaN(raw)) {
-      abilities[key] = Math.min(20, Math.max(1, Math.round(raw)));
+  const halfElfA = String(formData.get("half_elf_a") || "") as AbilityKey;
+  const halfElfB = String(formData.get("half_elf_b") || "") as AbilityKey;
+  const halfElfChoices =
+    race === "Half-Elf" && halfElfA && halfElfB && halfElfA !== halfElfB
+      ? ([halfElfA, halfElfB] as [AbilityKey, AbilityKey])
+      : undefined;
+
+  if (race === "Half-Elf" && !halfElfChoices) {
+    return { error: "Half-Elf needs two different +1 ability choices." };
+  }
+
+  // Reconstruct base scores from final submitted values minus racial bonuses.
+  const submitted = {} as AbilityScores;
+  for (const ability of ABILITIES) {
+    const raw = Number(formData.get(`ability_${ability.key}`));
+    submitted[ability.key] = Number.isNaN(raw) ? 10 : Math.round(raw);
+  }
+
+  const bonuses = getRacialBonuses(race, halfElfChoices);
+  const base = {} as AbilityScores;
+  for (const ability of ABILITIES) {
+    base[ability.key] = submitted[ability.key] - (bonuses[ability.key] ?? 0);
+  }
+
+  if (method === "pointbuy" && !isValidPointBuy(base)) {
+    return { error: "Invalid point-buy scores (8–15, max 27 points)." };
+  }
+  if (method === "standard" && !isValidStandardArray(base)) {
+    return { error: "Assign each standard-array score exactly once." };
+  }
+  if (method === "roll") {
+    const pool = String(formData.get("rolled_pool") || "")
+      .split(",")
+      .map(Number)
+      .filter((n) => !Number.isNaN(n));
+    if (!isValidRolledArray(base, pool)) {
+      return { error: "Assign each rolled score exactly once." };
     }
   }
 
+  const abilities = applyRacialBonuses(base, race, halfElfChoices);
+  for (const ability of ABILITIES) {
+    if (abilities[ability.key] < 1 || abilities[ability.key] > 20) {
+      return { error: "Ability scores must stay between 1 and 20." };
+    }
+  }
+
+  let goldRoll: { gp: number; notation: string } | undefined;
+  if (equipmentOption === "wealth") {
+    const gp = Number(formData.get("starting_gold"));
+    const notation = String(formData.get("starting_gold_notation") || "");
+    if (Number.isNaN(gp) || gp < 1) {
+      return { error: "Roll starting wealth before creating your hero." };
+    }
+    goldRoll = { gp, notation };
+  }
+
   const maxHp = startingHp(klass, abilities.con);
+  const inventory = buildStartingInventory(klass, background, equipmentOption, goldRoll);
 
   const { error } = await supabase.from("characters").insert({
     user_id: user.id,
@@ -54,9 +129,10 @@ export async function createCharacter(
     abilities,
     max_hp: maxHp,
     current_hp: maxHp,
-    armor_class: 10 + Math.floor((abilities.dex - 10) / 2),
-    background: background || null,
+    armor_class: unarmoredAc(abilities.dex),
+    background,
     bio: bio || null,
+    inventory,
   });
 
   if (error) return { error: error.message };
@@ -87,7 +163,6 @@ export async function createCampaign(
 
   if (!name) return { error: "Give your campaign a name." };
 
-  // Generate a unique invite code (retry a few times on collision).
   let inviteCode = generateInviteCode();
   for (let attempt = 0; attempt < 5; attempt++) {
     const { data: existing } = await supabase
@@ -108,7 +183,6 @@ export async function createCampaign(
       owner_id: user.id,
       invite_code: inviteCode,
       status: "active",
-      // When bringing a hero, the AI runs the table — spotlight starts on you.
       active_character_id: characterId || null,
       dm_voice_enabled: dmVoiceEnabled,
     })
@@ -123,14 +197,12 @@ export async function createCampaign(
     campaign_id: campaign.id,
     user_id: user.id,
     character_id: characterId || null,
-    // Hero at the table → player; GM-only → human runs DM tools.
     role: characterId ? "player" : "dm",
     turn_order: 0,
   });
 
   if (memberError) return { error: memberError.message };
 
-  // Invite selected friends — drop a notification with the join code.
   const inviteIds = formData
     .getAll("invite_friends")
     .map(String)
@@ -142,8 +214,7 @@ export async function createCampaign(
       .eq("id", user.id)
       .maybeSingle();
     const fromName =
-      (me as { display_name: string | null } | null)?.display_name ??
-      "A friend";
+      (me as { display_name: string | null } | null)?.display_name ?? "A friend";
     await supabase.from("notifications").insert(
       inviteIds.map((uid) => ({
         user_id: uid,
@@ -176,7 +247,6 @@ export async function deleteCampaign(id: string): Promise<ActionResult> {
   if (campaign.owner_id !== user.id)
     return { error: "Only the Game Master can close this campaign." };
 
-  // Notify the other members before the campaign (and its rows) cascade away.
   const { data: members } = await supabase
     .from("campaign_members")
     .select("user_id")
@@ -219,8 +289,6 @@ export async function joinCampaign(
   if (!code) return { error: "Enter an invite code." };
   if (!characterId) return { error: "Choose a character to bring." };
 
-  // A non-member can't read the campaign row under RLS, so look it up and join
-  // via a SECURITY DEFINER function that runs as the caller.
   const { data, error } = await supabase.rpc("join_campaign_by_code", {
     p_code: code,
     p_character_id: characterId,
@@ -237,7 +305,6 @@ export async function joinCampaign(
     | undefined;
   if (!row) return { error: "No campaign found for that code." };
 
-  // Let the Game Master know a hero has joined.
   if (row.is_new && row.owner_id !== user.id) {
     const { data: character } = await supabase
       .from("characters")

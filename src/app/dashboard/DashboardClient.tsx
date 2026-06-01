@@ -175,6 +175,7 @@ export function DashboardClient({
         open={showCharacter}
         onClose={() => setShowCharacter(false)}
         title="Create a hero"
+        wide
       >
         <CharacterForm onDone={() => setShowCharacter(false)} />
       </Modal>
