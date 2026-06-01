@@ -80,6 +80,7 @@ export function checkResultUserPrompt(result: CheckResultContext): string {
 // is fully playable out of the box.
 // ---------------------------------------------------------------------------
 type CampaignTheme = "crypt" | "road" | "crown" | "generic";
+type SceneLocation = "settlement" | "court" | "wilderness" | "dungeon" | "generic";
 
 const PROMPTS = [
   "What do you do?",
@@ -117,6 +118,64 @@ const THEME_ATMOSPHERE: Record<CampaignTheme, string[]> = {
     "Faint scratching echoes from a passage you cannot see.",
     "Shadows pool in the corners, refusing to be banished by your light.",
   ],
+};
+
+/** Opening mood lines that match WHERE the scene starts, not the adventure theme alone. */
+const OPENING_ATMOSPHERE: Record<
+  SceneLocation,
+  Record<CampaignTheme, string[]>
+> = {
+  settlement: {
+    crypt: [
+      "Rain drums the roof while the hearth sputters; locals fall quiet whenever the cliffside crypt is mentioned.",
+      "Through the tavern windows, lightning briefly catches the sealed crypt door on the distant cliff.",
+      "Ale, wet wool, and nervous laughter — the village pretends tonight is normal, but nobody sleeps easy.",
+    ],
+    road: [
+      "The inn's common room buzzes with travelers' rumors — caravans lost, roads unsafe, coin for those brave enough.",
+      "Mud from the road cakes the floorboards; every stranger here has a story and a reason to keep moving.",
+    ],
+    crown: [
+      "Even in this provincial hall, court gossip travels fast — the capital's troubles reach every corner of the realm.",
+      "Firelight glints off travel-worn cloaks; everyone here has business with power, one way or another.",
+    ],
+    generic: [
+      "The room hums with low voices and the clink of cups — a calm before whatever comes next.",
+      "Firelight throws long shadows; for now, you have a moment to plan.",
+    ],
+  },
+  court: {
+    crypt: THEME_ATMOSPHERE.crypt,
+    road: THEME_ATMOSPHERE.road,
+    crown: [
+      "Incense and wax polish cannot mask the grief hanging over the hall.",
+      "Guards stand rigid as statues; every word here carries weight.",
+      "Mourning banners droop in the draft — the kingdom waits for someone to act.",
+    ],
+    generic: THEME_ATMOSPHERE.generic,
+  },
+  wilderness: {
+    crypt: THEME_ATMOSPHERE.crypt,
+    road: [
+      "The caravan creaks forward beneath a sky the color of old blood.",
+      "Smoke tinges the air though no fire is in sight — something burns somewhere ahead.",
+      "Miles of road stretch behind you; whatever comes next has not shown its face yet.",
+    ],
+    crown: THEME_ATMOSPHERE.crown,
+    generic: THEME_ATMOSPHERE.generic,
+  },
+  dungeon: {
+    crypt: THEME_ATMOSPHERE.crypt,
+    road: THEME_ATMOSPHERE.road,
+    crown: THEME_ATMOSPHERE.crown,
+    generic: THEME_ATMOSPHERE.generic,
+  },
+  generic: {
+    crypt: THEME_ATMOSPHERE.crypt,
+    road: THEME_ATMOSPHERE.road,
+    crown: THEME_ATMOSPHERE.crown,
+    generic: THEME_ATMOSPHERE.generic,
+  },
 };
 
 const ACTION_REACTIONS: Record<string, Record<CampaignTheme, string[]>> = {
@@ -322,6 +381,7 @@ interface ParsedPremise {
 function parseCampaignPremise(ctx: DMContext): ParsedPremise {
   const raw = ctx.campaign.description?.trim() ?? "";
   const setting = ctx.campaign.setting?.trim() ?? "";
+  const partySize = ctx.party.length || 1;
 
   if (!raw) {
     return {
@@ -342,7 +402,7 @@ function parseCampaignPremise(ctx: DMContext): ParsedPremise {
         !scene &&
         /^(?:Open as|Begin in|Start in|The party gathers)/i.test(sentence)
       ) {
-        scene = cleanSceneSentence(sentence);
+        scene = cleanSceneSentence(sentence, partySize);
         continue;
       }
 
@@ -350,13 +410,13 @@ function parseCampaignPremise(ctx: DMContext): ParsedPremise {
         .split(/\.\s*(?:Begin|Open as|Start by|Start in|Then lead)/i)[0]
         ?.trim();
       if (beforeInstruction && SCENE_CUE.test(beforeInstruction) && !scene) {
-        scene = cleanSceneSentence(beforeInstruction);
+        scene = cleanSceneSentence(beforeInstruction, partySize);
       }
       continue;
     }
 
     if (SCENE_CUE.test(sentence) && !scene) {
-      scene = cleanSceneSentence(sentence);
+      scene = cleanSceneSentence(sentence, partySize);
       continue;
     }
 
@@ -371,7 +431,47 @@ function parseCampaignPremise(ctx: DMContext): ParsedPremise {
   return { hook, scene };
 }
 
-function cleanSceneSentence(sentence: string): string {
+function inferSceneLocation(scene: string, hook: string): SceneLocation {
+  const text = `${scene} ${hook}`.toLowerCase();
+  if (/\b(tavern|inn|alehouse|taproom|common room|village|town|lantern)\b/.test(text)) {
+    return "settlement";
+  }
+  if (/\b(throne room|palace|capital|court|chamber|regent|summoned to the)\b/.test(text)) {
+    return "court";
+  }
+  if (/\b(caravan|road|trail|wagon|rolls out|highway|journey|at dawn)\b/.test(text)) {
+    return "wilderness";
+  }
+  if (/\b(crypt|vault|tomb|catacomb|dungeon|underground|sealed door|stairs into)\b/.test(text)) {
+    return "dungeon";
+  }
+  return "generic";
+}
+
+function openingAtmosphere(
+  scene: string,
+  hook: string,
+  theme: CampaignTheme,
+  seed: number,
+): string {
+  const location = inferSceneLocation(scene, hook);
+  return pick(OPENING_ATMOSPHERE[location][theme], seed + 1);
+}
+
+/** Keep DM narration in consistent second person after party→you conversions. */
+function alignSecondPerson(text: string, partySize = 1): string {
+  const group = partySize > 1 ? "you all" : "you";
+  return text
+    .replace(/\bbetween them\b/gi, `between ${group}`)
+    .replace(/\bbefore them\b/gi, `before ${group}`)
+    .replace(/\bamong them\b/gi, `among ${group}`)
+    .replace(/\bbehind them\b/gi, `behind ${group}`)
+    .replace(/\baround them\b/gi, `around ${group}`)
+    .replace(/\bfor them\b/gi, `for ${group}`)
+    .replace(/\bthe party\b/gi, group);
+}
+
+function cleanSceneSentence(sentence: string, partySize = 1): string {
   let s = sentence.trim();
   s = s.replace(/\.\s*(Begin|Open as|Start by|Start in|Then lead)[^.]*$/i, ".");
   s = s.replace(/,\s*then lead[^.]*$/i, "");
@@ -395,7 +495,7 @@ function cleanSceneSentence(sentence: string): string {
   }
 
   if (!/[.!?]$/.test(s)) s += ".";
-  return s;
+  return alignSecondPerson(s, partySize);
 }
 
 function defaultOpeningScene(
@@ -496,7 +596,7 @@ export function offlineOpeningNarration(ctx: DMContext): string {
     (ctx.campaign.description?.length ?? 0) * 3 +
     ctx.party.length * 17;
   const { hook, scene } = parseCampaignPremise(ctx);
-  const atmosphere = pick(THEME_ATMOSPHERE[theme], seed + 1);
+  const atmosphere = openingAtmosphere(scene, hook, theme, seed);
   const lead = openingLead(theme, seed);
 
   const parts = [`${lead}\n\n${hook}`, scene, atmosphere, pick(PROMPTS, seed + 2)];
@@ -563,5 +663,5 @@ export function offlineDMNarration(
   } else {
     body += `\n\n${pick(PROMPTS, seed + 4)}`;
   }
-  return body;
+  return alignSecondPerson(body, ctx.party.length || 1);
 }
