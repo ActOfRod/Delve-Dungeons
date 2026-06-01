@@ -213,46 +213,26 @@ export async function joinCampaign(
   if (!code) return { error: "Enter an invite code." };
   if (!characterId) return { error: "Choose a character to bring." };
 
-  const { data: campaign, error } = await supabase
-    .from("campaigns")
-    .select("id, name, owner_id")
-    .eq("invite_code", code)
-    .maybeSingle();
-
+  // A non-member can't read the campaign row under RLS, so look it up and join
+  // via a SECURITY DEFINER function that runs as the caller.
+  const { data, error } = await supabase.rpc("join_campaign_by_code", {
+    p_code: code,
+    p_character_id: characterId,
+  });
   if (error) return { error: error.message };
-  if (!campaign) return { error: "No campaign found for that code." };
 
-  // Was the player already a member? (Avoid spamming a "joined" notification.)
-  const { data: priorMembership } = await supabase
-    .from("campaign_members")
-    .select("id")
-    .eq("campaign_id", campaign.id)
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  // Determine the next turn order slot.
-  const { count } = await supabase
-    .from("campaign_members")
-    .select("id", { count: "exact", head: true })
-    .eq("campaign_id", campaign.id);
-
-  const { error: joinError } = await supabase
-    .from("campaign_members")
-    .upsert(
-      {
-        campaign_id: campaign.id,
-        user_id: user.id,
-        character_id: characterId,
-        role: "player",
-        turn_order: count ?? 1,
-      },
-      { onConflict: "campaign_id,user_id" },
-    );
-
-  if (joinError) return { error: joinError.message };
+  const row = (Array.isArray(data) ? data[0] : data) as
+    | {
+        campaign_id: string;
+        campaign_name: string;
+        owner_id: string;
+        is_new: boolean;
+      }
+    | undefined;
+  if (!row) return { error: "No campaign found for that code." };
 
   // Let the Game Master know a hero has joined.
-  if (!priorMembership && campaign.owner_id !== user.id) {
+  if (row.is_new && row.owner_id !== user.id) {
     const { data: character } = await supabase
       .from("characters")
       .select("name")
@@ -261,16 +241,16 @@ export async function joinCampaign(
     const heroName =
       (character as { name: string } | null)?.name ?? "A new hero";
     await supabase.from("notifications").insert({
-      user_id: campaign.owner_id,
+      user_id: row.owner_id,
       type: "campaign_joined",
       title: "A hero joined your party",
-      body: `${heroName} joined "${campaign.name}".`,
-      data: { campaign_id: campaign.id },
+      body: `${heroName} joined "${row.campaign_name}".`,
+      data: { campaign_id: row.campaign_id },
     });
   }
 
   revalidatePath("/dashboard");
-  return { ok: true, redirect: `/campaign/${campaign.id}` };
+  return { ok: true, redirect: `/campaign/${row.campaign_id}` };
 }
 
 export async function signOut() {
