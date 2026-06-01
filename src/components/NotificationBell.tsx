@@ -76,6 +76,15 @@ export function NotificationBell({ userId }: { userId: string }) {
     };
   }, [supabase, userId, load]);
 
+  // Safety net: poll periodically so notifications still arrive even if the
+  // realtime socket misses an event or reconnects.
+  useEffect(() => {
+    const interval = setInterval(() => {
+      void load();
+    }, 15000);
+    return () => clearInterval(interval);
+  }, [load]);
+
   useEffect(() => {
     function onClick(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node))

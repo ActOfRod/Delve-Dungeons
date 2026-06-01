@@ -62,6 +62,9 @@ npm install
      trigger that requires a valid code to create an account. To re-open public
      sign-ups later, drop the trigger:
      `drop trigger if exists on_auth_user_invite on auth.users;`
+   - `0004_join_by_code.sql` — a `SECURITY DEFINER` function so players can join
+     a campaign by invite code (non-members can't read the campaign row directly
+     under RLS).
 3. _(Recommended for quick testing)_ Under **Authentication → Providers → Email**,
    you can disable "Confirm email" so new accounts can sign in immediately.
 
