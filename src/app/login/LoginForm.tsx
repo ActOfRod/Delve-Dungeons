@@ -10,11 +10,15 @@ export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get("redirect") || "/dashboard";
+  const initialInvite = (searchParams.get("invite") || "").toUpperCase();
+  const initialMode: Mode =
+    searchParams.get("mode") === "signup" || initialInvite ? "signup" : "signin";
 
-  const [mode, setMode] = useState<Mode>("signin");
+  const [mode, setMode] = useState<Mode>(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [inviteCode, setInviteCode] = useState(initialInvite);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -23,8 +27,15 @@ export function LoginForm() {
     e.preventDefault();
     setError(null);
     setNotice(null);
-    setLoading(true);
+
     const supabase = createClient();
+
+    if (mode === "signup" && !inviteCode.trim()) {
+      setError("An invite code is required to join the test.");
+      return;
+    }
+
+    setLoading(true);
 
     try {
       if (mode === "signin") {
@@ -36,6 +47,19 @@ export function LoginForm() {
         router.push(redirectTo);
         router.refresh();
       } else {
+        const code = inviteCode.trim().toUpperCase();
+
+        // Pre-check so we can show a friendly message before attempting signup.
+        const { data: available } = await supabase.rpc(
+          "invite_code_available",
+          { p_code: code },
+        );
+        if (!available) {
+          setError("That invite code is invalid or has been used up.");
+          setLoading(false);
+          return;
+        }
+
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
@@ -43,6 +67,7 @@ export function LoginForm() {
             data: {
               display_name: displayName || email.split("@")[0],
               username: email.split("@")[0],
+              invite_code: code,
             },
           },
         });
@@ -59,7 +84,15 @@ export function LoginForm() {
         }
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong.");
+      const message = err instanceof Error ? err.message : "Something went wrong.";
+      // The signup-gating trigger surfaces as a generic GoTrue database error.
+      if (mode === "signup" && /database error/i.test(message)) {
+        setError(
+          "We couldn't create your account — your invite code may be invalid or already used.",
+        );
+      } else {
+        setError(message);
+      }
     } finally {
       setLoading(false);
     }
@@ -74,20 +107,31 @@ export function LoginForm() {
         <p className="mt-1 text-sm text-parchment/60">
           {mode === "signin"
             ? "Sign in to rejoin your party."
-            : "Create an account to start your first campaign."}
+            : "Delve Dungeons is invite-only during testing. Enter your code to join."}
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         {mode === "signup" && (
-          <Field
-            label="Display name"
-            type="text"
-            value={displayName}
-            onChange={setDisplayName}
-            placeholder="Tasha the Bold"
-            autoComplete="nickname"
-          />
+          <>
+            <Field
+              label="Invite code"
+              type="text"
+              value={inviteCode}
+              onChange={(v) => setInviteCode(v.toUpperCase())}
+              placeholder="ABCD2345"
+              autoComplete="off"
+              required
+            />
+            <Field
+              label="Display name"
+              type="text"
+              value={displayName}
+              onChange={setDisplayName}
+              placeholder="Tasha the Bold"
+              autoComplete="nickname"
+            />
+          </>
         )}
         <Field
           label="Email"

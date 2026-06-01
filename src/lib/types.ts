@@ -19,6 +19,16 @@ export interface InventoryItem {
   description?: string;
 }
 
+export interface InviteCode {
+  id: string;
+  code: string;
+  created_by: string | null;
+  label: string | null;
+  max_uses: number | null;
+  uses: number;
+  created_at: string;
+}
+
 export type FriendshipStatus = "pending" | "accepted" | "declined";
 
 export interface Friendship {
