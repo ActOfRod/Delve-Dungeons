@@ -215,7 +215,7 @@ function CampaignCard({
         aria-label={`Open ${campaign.name}`}
       />
       <div className="pointer-events-none relative">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2 pr-9">
           <span className="rounded-full bg-arcane/15 px-2.5 py-0.5 text-xs uppercase tracking-wide text-arcane-bright">
             {isOwner ? "Game Master" : "Player"}
           </span>
