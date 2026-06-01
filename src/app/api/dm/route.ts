@@ -18,8 +18,13 @@ import type { Campaign, Character, DiceRoll, Message, PendingCheck } from "@/lib
 
 export const runtime = "nodejs";
 
-/** Models that work on the Gemini API as of mid-2026 (2.0 Flash is deprecated). */
-const GEMINI_FALLBACK_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite"];
+/** Default fallbacks — Gemini 3 for newer AI Studio accounts; 2.5 for legacy. */
+const GEMINI_FALLBACK_MODELS = [
+  "gemini-3.1-flash-lite",
+  "gemini-3-flash-preview",
+  "gemini-2.5-flash",
+  "gemini-2.5-flash-lite",
+];
 
 type DMGenerationMode = "opening" | "action" | "checkResult";
 

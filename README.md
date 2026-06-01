@@ -83,7 +83,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 # Optional — enables the AI Dungeon Master (Gemini or OpenAI).
 # Without any key, a built-in offline DM narrates locally.
 GOOGLE_GEMINI_API_KEY=AIza...
-GOOGLE_GEMINI_MODEL=gemini-2.5-flash
+GOOGLE_GEMINI_MODEL=gemini-3.1-flash-lite
 
 OPENAI_API_KEY=sk-...
 OPENAI_MODEL=gpt-4o-mini
