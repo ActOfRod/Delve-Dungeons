@@ -177,7 +177,6 @@ const HIT_DIE_BY_CLASS: Partial<Record<CharacterClass, number>> = {
   Warlock: 8,
   Sorcerer: 6,
   Wizard: 6,
-  Wizard: 6,
 };
 
 export const STANDARD_ARRAY_VALUES = [15, 14, 13, 12, 10, 8] as const;
