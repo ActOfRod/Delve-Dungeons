@@ -34,10 +34,41 @@ function buildPromptMessages(
       role: "user",
       content: checkResultUserPrompt(checkResult),
     });
-  } else if (latestInput) {
+  } else if (mode === "action" && latestInput && messages.length === 0) {
+    // Player line not in transcript yet (edge case).
     messages.push({ role: "user", content: latestInput });
   }
   return messages;
+}
+
+/** Gemini requires alternating user/model turns — merge consecutive same-role lines. */
+function toGeminiContents(
+  messages: { role: "user" | "assistant"; content: string }[],
+): { role: "user" | "model"; parts: { text: string }[] }[] {
+  const contents: { role: "user" | "model"; parts: { text: string }[] }[] = [];
+  for (const message of messages) {
+    const role = message.role === "assistant" ? "model" : "user";
+    const last = contents[contents.length - 1];
+    if (last?.role === role) {
+      last.parts[0].text += `\n\n${message.content}`;
+    } else {
+      contents.push({ role, parts: [{ text: message.content }] });
+    }
+  }
+  return contents;
+}
+
+function extractGeminiText(data: {
+  candidates?: { content?: { parts?: { text?: string; thought?: boolean }[] } }[];
+}): string | undefined {
+  const parts = data.candidates?.[0]?.content?.parts;
+  if (!parts?.length) return undefined;
+  const text = parts
+    .filter((part) => part.text && !part.thought)
+    .map((part) => part.text)
+    .join("\n")
+    .trim();
+  return text || undefined;
 }
 
 async function generateWithGemini(
@@ -51,35 +82,50 @@ async function generateWithGemini(
 
   const model = process.env.GOOGLE_GEMINI_MODEL || "gemini-2.0-flash";
   const messages = buildPromptMessages(ctx, latestInput, mode, checkResult);
-  const contents = messages.map((message) => ({
-    role: message.role === "assistant" ? "model" : "user",
-    parts: [{ text: message.content }],
-  }));
+  const contents = toGeminiContents(messages);
+  if (contents.length === 0) {
+    contents.push({ role: "user", parts: [{ text: openingUserPrompt() }] });
+  }
+
+  const generationConfig: Record<string, unknown> = {
+    temperature: 0.9,
+    maxOutputTokens: 500,
+  };
+  if (/gemini-3/i.test(model)) {
+    generationConfig.thinkingConfig = { thinkingLevel: "minimal" };
+  }
 
   try {
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": apiKey,
+        },
         body: JSON.stringify({
           systemInstruction: {
             parts: [{ text: buildSystemPrompt(ctx) }],
           },
           contents,
-          generationConfig: {
-            temperature: 0.9,
-            maxOutputTokens: 500,
-          },
+          generationConfig,
         }),
       },
     );
-    if (!res.ok) return null;
+    if (!res.ok) {
+      const detail = await res.text();
+      console.error("[dm] Gemini error:", res.status, detail.slice(0, 500));
+      return null;
+    }
     const data = await res.json();
-    const content: string | undefined =
-      data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    return content?.trim() || null;
-  } catch {
+    const content = extractGeminiText(data);
+    if (!content) {
+      console.error("[dm] Gemini returned no text:", JSON.stringify(data).slice(0, 500));
+    }
+    return content ?? null;
+  } catch (err) {
+    console.error("[dm] Gemini request failed:", err);
     return null;
   }
 }
