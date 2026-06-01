@@ -183,6 +183,25 @@ const ACTION_REACTIONS: Record<string, Record<CampaignTheme, string[]>> = {
       "Someone listens — and what they say next changes the stakes.",
     ],
   },
+  move: {
+    crypt: [
+      "Each step downward carries cold air up to meet you; the torch shrinks in the widening dark.",
+      "The stairs spiral beneath your feet — somewhere below, something shifts in the black.",
+      "Stone steps swallow your footfalls; the light above grows weaker with every descent.",
+    ],
+    road: [
+      "The path narrows ahead; mud sucks at your boots with every stride.",
+      "You press on — the horizon offers no hint of rest.",
+    ],
+    crown: [
+      "Marble halls give way to older stone; the crown's history weighs on every corridor.",
+      "Guards' eyes track your passage; you are expected, but not trusted.",
+    ],
+    generic: [
+      "You press forward; the way opens before you.",
+      "Each step carries you deeper into the unknown.",
+    ],
+  },
   default: {
     crypt: [
       "The crypt answers your boldness with silence — the kind that listens back.",
@@ -262,6 +281,18 @@ function pick<T>(arr: T[], seed: number): T {
   return arr[index]!;
 }
 
+function pickFresh(arr: string[], seed: number, recentText: string): string {
+  const fresh = arr.filter((line) => !recentText.includes(line));
+  return pick(fresh.length > 0 ? fresh : arr, seed);
+}
+
+function recentDmText(ctx: DMContext): string {
+  return ctx.recentMessages
+    .filter((m) => m.sender_type === "dm")
+    .map((m) => m.content)
+    .join("\n");
+}
+
 function narrationSeed(playerInput: string, messageCount: number): number {
   return (
     playerInput.length * 31 +
@@ -287,7 +318,19 @@ function inferTheme(ctx: DMContext): CampaignTheme {
 
 function actionCategory(input: string): keyof typeof ACTION_REACTIONS {
   const lower = input.toLowerCase();
-  if (/open|unlock|key|door|gate|enter|descend|stairs/.test(lower)) return "door";
+  if (
+    /go down|head down|descend|climb down|walk down|step down|down the stairs|down the steps|down into|proceed down|continue down|move down|go deeper|venture down/.test(
+      lower,
+    ) ||
+    (/stairs|steps|ladder|passage|corridor|tunnel|hallway/.test(lower) &&
+      /go|walk|head|move|step|descend|enter|continue|proceed|venture/.test(
+        lower,
+      ) &&
+      !/open|unlock|key/.test(lower))
+  ) {
+    return "move";
+  }
+  if (/open|unlock|key|door|gate|bar|latch/.test(lower)) return "door";
   if (/search|inspect|examine|look|study|read|investigate/.test(lower)) {
     return "search";
   }
@@ -297,15 +340,26 @@ function actionCategory(input: string): keyof typeof ACTION_REACTIONS {
   return "default";
 }
 
-function normalizePlayerEcho(input: string): string {
-  return input
-    .trim()
-    .replace(/^I\s+/i, "")
-    .replace(/[.!?]$/, "");
+/** Turn "I open the door" into second-person DM narration: "You open the door". */
+function formatPlayerEcho(input: string): string {
+  const trimmed = input.trim().replace(/[.!?]+$/, "");
+  if (/^I['']m\s+/i.test(trimmed)) {
+    return `You're ${trimmed.replace(/^I['']m\s+/i, "")}`;
+  }
+  if (/^I\s+/i.test(trimmed)) {
+    return `You ${trimmed.replace(/^I\s+/i, "")}`;
+  }
+  if (/^you\s+/i.test(trimmed)) {
+    return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+  }
+  return `You ${trimmed.charAt(0).toLowerCase()}${trimmed.slice(1)}`;
 }
 
 function shouldCallForCheck(input: string, seed: number): boolean {
   const lower = input.toLowerCase();
+  if (actionCategory(input) === "move" && /dark|stairs|descend|black|shadow/.test(lower)) {
+    return seed % 3 === 0;
+  }
   const risky =
     /search|inspect|sneak|listen|pick|lock|trap|climb|track|hide|arcane|read|study|examine|look closely|investigate/.test(
       lower,
@@ -347,17 +401,22 @@ export function offlineCheckResultNarration(
   const outcome = pick(outcomes, seed);
   const margin = result.total - result.dc;
   const close = !result.success && margin >= -2;
+  const possessive =
+    ctx.activeCharacterName &&
+    result.characterName.toLowerCase() === ctx.activeCharacterName.toLowerCase()
+      ? "Your"
+      : `${result.characterName}'s`;
 
-  let body = `${result.characterName}'s ${result.skill} check ${result.success ? "succeeds" : "fails"} (${result.total} vs DC ${result.dc}). ${outcome}`;
+  let body = `${possessive} ${result.skill} check ${result.success ? "succeeds" : "fails"} (${result.total} vs DC ${result.dc}). ${outcome}`;
 
   if (close) {
     body += " You were so close — the margin between triumph and disaster was razor-thin.";
   }
 
   if (result.success) {
-    body += `\n\n${pick(THEME_ATMOSPHERE[theme], seed + 2)}`;
+    body += `\n\n${pickFresh(THEME_ATMOSPHERE[theme], seed + 2, recentDmText(ctx))}`;
   } else {
-    body += `\n\n${pick(ACTION_REACTIONS.default[theme], seed + 3)}`;
+    body += `\n\n${pickFresh(ACTION_REACTIONS.default[theme], seed + 3, recentDmText(ctx))}`;
   }
 
   body += `\n\n${pick(PROMPTS, seed + 4)}`;
@@ -370,16 +429,19 @@ export function offlineDMNarration(
 ): string {
   const theme = inferTheme(ctx);
   const seed = narrationSeed(playerInput, ctx.recentMessages.length || 1);
-  const who = ctx.activeCharacterName || ctx.party[0]?.name || "You";
+  const recentText = recentDmText(ctx);
   const category = actionCategory(playerInput);
-  const reaction = pick(ACTION_REACTIONS[category][theme], seed + 1);
-  const atmosphere = pick(THEME_ATMOSPHERE[theme], seed + 2);
+  const reaction = pickFresh(ACTION_REACTIONS[category][theme], seed + 1, recentText);
+  const atmosphere = pickFresh(THEME_ATMOSPHERE[theme], seed + 2, recentText);
 
   const echo = playerInput
-    ? `${who} ${normalizePlayerEcho(playerInput)}.`
-    : `${who} steady themselves and take stock of the situation.`;
+    ? `${formatPlayerEcho(playerInput)}.`
+    : "You steady yourself and take stock of the situation.";
 
-  let body = `${echo}\n\n${reaction} ${atmosphere}`;
+  let body = `${echo}\n\n${reaction}`;
+  if (!body.includes(atmosphere.slice(0, 24))) {
+    body += ` ${atmosphere}`;
+  }
 
   if (shouldCallForCheck(playerInput, seed)) {
     const c = pick(CHECK_SKILLS, seed + 3);
