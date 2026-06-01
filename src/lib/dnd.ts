@@ -255,11 +255,6 @@ export function isValidRolledArray(scores: AbilityScores, pool: number[]): boole
   const want = [...pool].sort((a, b) => b - a);
   return got.every((value, index) => value === want[index]);
 }
-  const got = ABILITIES.map((a) => scores[a.key]).sort((a, b) => b - a);
-  if (got.some((value) => value < 1)) return false;
-  const want = [...STANDARD_ARRAY_VALUES].sort((a, b) => b - a);
-  return got.every((value, index) => value === want[index]);
-}
 
 export function rollFourDropLowest(): number {
   const rolls = [rollDie("d6"), rollDie("d6"), rollDie("d6"), rollDie("d6")];
