@@ -89,15 +89,7 @@ const PROMPTS = [
   "What is your next move?",
 ];
 
-const CHECK_SKILLS = [
-  { skill: "Perception", dc: 13 },
-  { skill: "Investigation", dc: 14 },
-  { skill: "Stealth", dc: 12 },
-  { skill: "Insight", dc: 15 },
-  { skill: "Arcana", dc: 16 },
-];
-
-const THEME_ATMOSPHERE: Record<CampaignTheme, string[]> = {
+const PROMPTS = [
   crypt: [
     "Damp stone sweats beneath your boots; the air tastes of turned earth and old prayers.",
     "Somewhere below, chains whisper against rock — or perhaps it is only the wind lying.",
@@ -276,10 +268,13 @@ const CHECK_SUCCESS: Record<string, string[]> = {
   Perception: [
     "Your instincts pay off — a detail snaps into focus that everyone else missed.",
     "You catch the subtle wrongness before it becomes a ambush.",
+    "Your eyes adjust — wall-brackets where torches once hung still hold a usable ember.",
   ],
   Investigation: [
     "The clue was hiding in plain sight; now the path forward is clearer.",
     "Pieces click together — someone went to great lengths to hide this.",
+    "Tucked in a rusted sconce, a half-spent torch still holds oil — you have light.",
+    "Your fingers find a stub of candle in the debris; the darkness retreats a little.",
   ],
   Stealth: [
     "You melt into shadow; the danger passes within arm's reach.",
@@ -307,6 +302,7 @@ const CHECK_FAILURE: Record<string, string[]> = {
   Investigation: [
     "The trail goes cold; whatever was here, someone covered their tracks well.",
     "Nothing yields its secret — yet.",
+    "No torch, candle, or dry tinder — the darkness stays absolute for now.",
   ],
   Stealth: [
     "A loose stone clatters; heads turn your way.",
@@ -561,32 +557,164 @@ function actionCategory(input: string): keyof typeof ACTION_REACTIONS {
   return "default";
 }
 
-/** Turn "I open the door" into second-person DM narration: "You open the door". */
-function formatPlayerEcho(input: string): string {
-  const trimmed = input.trim().replace(/[.!?]+$/, "");
-  if (/^I['']m\s+/i.test(trimmed)) {
-    return `You're ${trimmed.replace(/^I['']m\s+/i, "")}`;
-  }
-  if (/^I\s+/i.test(trimmed)) {
-    return `You ${trimmed.replace(/^I\s+/i, "")}`;
-  }
-  if (/^you\s+/i.test(trimmed)) {
-    return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
-  }
-  return `You ${trimmed.charAt(0).toLowerCase()}${trimmed.slice(1)}`;
+type ActionResolution =
+  | { kind: "auto"; outcome: string }
+  | { kind: "check"; skill: string; dc: number; setup: string }
+  | { kind: "narrate"; outcome: string };
+
+function recentPlayerText(ctx: DMContext, limit = 4): string {
+  return ctx.recentMessages
+    .filter((m) => m.sender_type === "player")
+    .slice(-limit)
+    .map((m) => m.content)
+    .join(" ");
 }
 
-function shouldCallForCheck(input: string, seed: number): boolean {
+function isSeekingLight(input: string): boolean {
   const lower = input.toLowerCase();
-  if (actionCategory(input) === "move" && /dark|stairs|descend|black|shadow/.test(lower)) {
-    return seed % 3 === 0;
-  }
-  const risky =
-    /search|inspect|sneak|listen|pick|lock|trap|climb|track|hide|arcane|read|study|examine|look closely|investigate/.test(
-      lower,
+  return (
+    /light|torch|lantern|flame|candle|fire/.test(lower) &&
+    /look|search|find|seek|need|any|source/.test(lower)
+  );
+}
+
+function isDarkScene(ctx: DMContext): boolean {
+  const text = `${recentDmText(ctx)} ${recentPlayerText(ctx)}`.toLowerCase();
+  const inLitSafe =
+    /\b(tavern|hearth|common room|firelight|daylight|sunlight|lit hall)\b/.test(
+      text,
+    ) && !/\b(utter black|pitch dark|unlit|without light)\b/.test(text.slice(-400));
+  if (inLitSafe) return false;
+  return /\b(dark|black|shadow|unlit|utter black|pitch|darkness|no light|grave-air|spiral into|crypt|underground|stairs|groping)\b/.test(
+    text,
+  );
+}
+
+/** Rule-based: when does an action auto-succeed vs need a roll? */
+function classifyActionResolution(
+  input: string,
+  ctx: DMContext,
+  theme: CampaignTheme,
+  seed: number,
+  recentText: string,
+): ActionResolution {
+  const lower = input.toLowerCase();
+  const category = actionCategory(input);
+
+  const check = (
+    skill: string,
+    dc: number,
+    setup: string,
+  ): ActionResolution => ({ kind: "check", skill, dc, setup });
+
+  const auto = (pool: string[]): ActionResolution => ({
+    kind: "auto",
+    outcome: pickFresh(pool, seed + 1, recentText),
+  });
+
+  const narrate = (pool: string[]): ActionResolution => ({
+    kind: "narrate",
+    outcome: pickFresh(pool, seed + 1, recentText),
+  });
+
+  // --- Skill checks: uncertain outcomes ------------------------------------
+  if (/sneak|hide|stealth|slip past|quietly/.test(lower)) {
+    return check(
+      "Stealth",
+      12,
+      "Moving unseen demands patience — one wrong step and something will notice.",
     );
-  if (risky) return seed % 2 === 0;
-  return seed % 6 === 0;
+  }
+  if (/pick the lock|lockpick|pick it/.test(lower) && !/key/.test(lower)) {
+    return check(
+      "Sleight of Hand",
+      14,
+      "The lock is old, but not forgiving — your tools need a steady hand.",
+    );
+  }
+  if (/persuade|convince|plead|beg/.test(lower)) {
+    return check(
+      "Persuasion",
+      13,
+      "Your words must land just right; the listener is not easily moved.",
+    );
+  }
+  if (/deceive|lie|bluff|trick them/.test(lower)) {
+    return check("Deception", 13, "You spin the tale — now you must sell it.");
+  }
+  if (/intimidate|threaten|menace/.test(lower)) {
+    return check(
+      "Intimidation",
+      13,
+      "You let the threat hang in the air; they must believe you mean it.",
+    );
+  }
+  if (/listen|eavesdrop|what do you hear/.test(lower)) {
+    return check(
+      "Perception",
+      13,
+      "You hold your breath and strain to catch what the silence is hiding.",
+    );
+  }
+
+  // Searching for light in the dark always warrants a roll.
+  if (isSeekingLight(input) && isDarkScene(ctx)) {
+    return check(
+      "Investigation",
+      12,
+      "You pat down your gear and sweep the area for anything that still holds a flame.",
+    );
+  }
+
+  // Searching or examining in dangerous/uncertain conditions.
+  if (category === "search" && isDarkScene(ctx)) {
+    const skill = /hidden|secret|trap|symbol|carving|clue|inscription/.test(
+      lower,
+    )
+      ? "Investigation"
+      : "Perception";
+    return check(
+      skill,
+      skill === "Investigation" ? 13 : 12,
+      pickFresh(ACTION_REACTIONS.search[theme], seed + 1, recentText),
+    );
+  }
+
+  // --- Auto success: straightforward physical actions ----------------------
+  if (
+    (/key/.test(lower) &&
+      /open|unlock|put in|insert|turn|lock/.test(lower)) ||
+    (category === "door" &&
+      !/pick|force|break|bash|shoulder/.test(lower))
+  ) {
+    return auto(ACTION_REACTIONS.door[theme]);
+  }
+
+  if (/force|break down|bash|shoulder/.test(lower) && category === "door") {
+    return check(
+      "Athletics",
+      14,
+      "You brace yourself — it will take raw strength to breach this barrier.",
+    );
+  }
+
+  if (category === "move") {
+    return auto(ACTION_REACTIONS.move[theme]);
+  }
+
+  // --- Narrate: progress without a roll ------------------------------------
+  if (category === "search") {
+    return {
+      kind: "narrate",
+      outcome: `${pickFresh(ACTION_REACTIONS.search[theme], seed + 1, recentText)} Nothing useful turns up on this pass.`,
+    };
+  }
+
+  if (category === "talk") {
+    return narrate(ACTION_REACTIONS.talk[theme]);
+  }
+
+  return narrate(ACTION_REACTIONS.default[theme]);
 }
 
 export function offlineOpeningNarration(ctx: DMContext): string {
@@ -644,24 +772,22 @@ export function offlineDMNarration(
   const theme = inferTheme(ctx);
   const seed = narrationSeed(playerInput, ctx.recentMessages.length || 1);
   const recentText = recentDmText(ctx);
-  const category = actionCategory(playerInput);
-  const reaction = pickFresh(ACTION_REACTIONS[category][theme], seed + 1, recentText);
-  const atmosphere = pickFresh(THEME_ATMOSPHERE[theme], seed + 2, recentText);
+  const resolution = classifyActionResolution(
+    playerInput,
+    ctx,
+    theme,
+    seed,
+    recentText,
+  );
 
-  const echo = playerInput
-    ? `${formatPlayerEcho(playerInput)}.`
-    : "You steady yourself and take stock of the situation.";
+  let body: string;
 
-  let body = `${echo}\n\n${reaction}`;
-  if (!body.includes(atmosphere.slice(0, 24))) {
-    body += ` ${atmosphere}`;
-  }
-
-  if (shouldCallForCheck(playerInput, seed)) {
-    const c = pick(CHECK_SKILLS, seed + 3);
-    body += `\n\nThe moment calls for a test of skill.\n[CHECK: ${c.skill} | DC ${c.dc}]`;
+  if (resolution.kind === "check") {
+    body = `${resolution.setup}\n\n[CHECK: ${resolution.skill} | DC ${resolution.dc}]`;
   } else {
+    body = resolution.outcome;
     body += `\n\n${pick(PROMPTS, seed + 4)}`;
   }
+
   return alignSecondPerson(body, ctx.party.length || 1);
 }
