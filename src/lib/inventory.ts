@@ -24,8 +24,17 @@ const PACK_KEYWORDS = /\bpack\b/i;
 const CURRENCY_KEYWORDS =
   /\b(gold pieces?|gp\b|platinum pieces?|electrum pieces?|silver pieces?|copper pieces?|coins?)\b/i;
 
-const META_KEYWORDS =
-  /\b(background|skill proficiencies|tool proficiencies)\b/i;
+const META_KEYWORDS = /\bbackground\b/i;
+
+/** Background skill/tool rows stored on characters — not physical stash loot. */
+export function isProficiencyRecordItem(name: string): boolean {
+  const n = name.trim().toLowerCase();
+  return n === "skill proficiencies" || n === "tool proficiencies";
+}
+
+export function filterPhysicalInventoryItems<T extends InventoryItem>(items: T[]): T[] {
+  return items.filter((item) => !isProficiencyRecordItem(item.name));
+}
 
 export function categorizeItemName(name: string): ItemCategory {
   const n = name.trim();
@@ -134,14 +143,16 @@ export function aggregatePlayerInventory(
 ): DisplayInventoryItem[] {
   const rows: DisplayInventoryItem[] = [];
 
-  for (const item of normalizeInventoryItems(vaultItems)) {
+  for (const item of filterPhysicalInventoryItems(normalizeInventoryItems(vaultItems))) {
     rows.push({ ...item, source: "vault" });
   }
 
   for (const character of characters) {
-    const inv = normalizeInventoryItems(
-      (character.inventory ?? []) as InventoryItem[],
-      { klass: character.klass, inferEquipped: true },
+    const inv = filterPhysicalInventoryItems(
+      normalizeInventoryItems(
+        (character.inventory ?? []) as InventoryItem[],
+        { klass: character.klass, inferEquipped: true },
+      ),
     );
     for (const item of inv) {
       rows.push({
