@@ -117,8 +117,23 @@ export async function createCharacter(
     goldRoll = { gp, notation };
   }
 
+  const kitChoices: Record<string, number> = {};
+  for (const [key, value] of formData.entries()) {
+    if (key.startsWith("kit_choice_")) {
+      const choiceId = key.slice("kit_choice_".length);
+      const index = Number(value);
+      if (!Number.isNaN(index)) kitChoices[choiceId] = index;
+    }
+  }
+
   const maxHp = startingHp(klass, abilities.con);
-  const inventory = buildStartingInventory(klass, background, equipmentOption, goldRoll);
+  const inventory = buildStartingInventory(
+    klass,
+    background,
+    equipmentOption,
+    goldRoll,
+    kitChoices,
+  );
 
   const { error } = await supabase.from("characters").insert({
     user_id: user.id,
