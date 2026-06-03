@@ -55,7 +55,7 @@ export default async function GeneralShopPage() {
           <p className="mt-2 max-w-xl text-sm text-parchment/60">
             The local shop for adventurers of levels {GENERAL_SHOP_MIN_LEVEL}–
             {GENERAL_SHOP_MAX_LEVEL}. Today&apos;s counter holds four wares —
-            always two healing potions, plus three pieces matched to your class.
+            a rolled healing potion line, plus three pieces matched to your class.
             Stock refreshes each day.
           </p>
         </header>
