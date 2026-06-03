@@ -49,11 +49,7 @@ export function CampaignForm({
   const [characterId, setCharacterId] = useState(() =>
     pickDefaultCharacter(characters, busyCharacterIds),
   );
-  const [dmVoiceEnabled, setDmVoiceEnabled] = useState(true);
-
-  useEffect(() => {
-    if (characterId) setDmVoiceEnabled(true);
-  }, [characterId]);
+  const [dmVoiceEnabled, setDmVoiceEnabled] = useState(false);
 
   useEffect(() => {
     if (state.ok && state.redirect) {
