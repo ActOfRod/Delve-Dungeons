@@ -1,5 +1,6 @@
 "use client";
 
+import { ItemValueBadge } from "@/components/ItemValueBadge";
 import type { DisplayInventoryItem } from "@/lib/inventory";
 import { categorizeItemName } from "@/lib/inventory";
 
@@ -44,6 +45,7 @@ export function InventoryItemRow({
           <p className="mt-1 text-xs text-parchment/40">In your vault</p>
         )}
       </div>
+      <ItemValueBadge item={item} />
     </div>
   );
 }
