@@ -151,6 +151,11 @@ body {
     0 8px 28px -8px rgba(124, 107, 214, 0.35);
 }
 
+.dd-stash-tile-general:hover {
+  transform: translateY(-3px) scale(1.02);
+  border-color: rgba(200, 120, 60, 0.55);
+}
+
 .dd-stash-tile-general {
   border-color: rgba(200, 120, 60, 0.4);
   background: linear-gradient(
