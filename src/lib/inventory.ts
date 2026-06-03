@@ -1,6 +1,6 @@
 import type { Character, InventoryItem, ItemCategory } from "./types";
 
-export type InventoryFilter = "all" | "weapon" | "armor" | "potion" | "key";
+export type InventoryFilter = "all" | "weapon" | "armor" | "potion" | "key" | "currency";
 
 export interface DisplayInventoryItem extends InventoryItem {
   source: "vault" | "character";
@@ -21,11 +21,15 @@ const KEY_KEYWORDS =
 
 const PACK_KEYWORDS = /\bpack\b/i;
 
+const CURRENCY_KEYWORDS =
+  /\b(gold pieces?|gp\b|platinum pieces?|electrum pieces?|silver pieces?|copper pieces?|coins?)\b/i;
+
 const META_KEYWORDS =
-  /\b(gold pieces|background|skill proficiencies|tool proficiencies)\b/i;
+  /\b(background|skill proficiencies|tool proficiencies)\b/i;
 
 export function categorizeItemName(name: string): ItemCategory {
   const n = name.trim();
+  if (CURRENCY_KEYWORDS.test(n)) return "currency";
   if (POTION_KEYWORDS.test(n)) return "potion";
   if (ARMOR_KEYWORDS.test(n)) return "armor";
   if (WEAPON_KEYWORDS.test(n)) return "weapon";
@@ -165,6 +169,11 @@ export function filterInventory(
   }
   if (filter === "potion") {
     return items.filter((i) => (i.category ?? categorizeItemName(i.name)) === "potion");
+  }
+  if (filter === "currency") {
+    return items.filter(
+      (i) => (i.category ?? categorizeItemName(i.name)) === "currency",
+    );
   }
   if (filter === "key") {
     return items.filter((i) => {

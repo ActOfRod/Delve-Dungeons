@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Modal } from "@/components/Modal";
 import { createClient } from "@/lib/supabase/client";
+import { ItemValueBadge } from "@/components/ItemValueBadge";
 import type { Character, InventoryItem } from "@/lib/types";
 import { ABILITIES, abilityModifier, formatModifier, getBackground, proficiencyBonus } from "@/lib/dnd";
 
@@ -175,20 +176,10 @@ export function CharacterInspect({
               {inventory.map((item, i) => (
                 <div
                   key={item.id ?? i}
-                  className="flex items-center justify-between gap-2 rounded-lg border border-white/5 bg-black/20 px-3 py-2 text-sm"
+                  className="flex items-center justify-between rounded-lg border border-white/5 bg-black/20 px-3 py-2 text-sm"
                 >
-                  <span className="flex min-w-0 items-center gap-2 text-parchment">
-                    {item.name}
-                    {item.equipped && (
-                      <span
-                        className="shrink-0 rounded border border-arcane/40 bg-arcane/20 px-1.5 py-0.5 text-[10px] font-bold uppercase text-arcane-bright"
-                        title="Equipped"
-                      >
-                        E
-                      </span>
-                    )}
-                  </span>
-                  <span className="shrink-0 text-xs text-gold">×{item.quantity}</span>
+                  <span className="text-parchment">{item.name}</span>
+                  <span className="text-xs text-gold">×{item.quantity}</span>
                 </div>
               ))}
             </div>

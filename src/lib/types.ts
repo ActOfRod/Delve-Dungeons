@@ -6,7 +6,7 @@ export type MemberRole = "dm" | "player";
 
 export type DmDialogueLength = "brief" | "measured" | "long_winded";
 
-export type ItemCategory = "weapon" | "armor" | "potion" | "key" | "other";
+export type ItemCategory = "weapon" | "armor" | "potion" | "key" | "currency" | "other";
 
 export interface InventoryItem {
   id?: string;

@@ -15,6 +15,7 @@ const FILTERS: { key: InventoryFilter; label: string }[] = [
   { key: "weapon", label: "Weapons" },
   { key: "armor", label: "Armor" },
   { key: "potion", label: "Potions" },
+  { key: "currency", label: "Currency" },
   { key: "key", label: "Key Items" },
 ];
 
