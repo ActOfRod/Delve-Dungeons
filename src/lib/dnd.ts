@@ -1,5 +1,10 @@
 // Core Dungeons & Dragons domain helpers: dice, classes, races, ability scores.
 
+import {
+  resolveBackgroundEquipment,
+  resolveClassEquipment,
+} from "./class-starting-equipment";
+
 export type DieType = "d4" | "d6" | "d8" | "d10" | "d12" | "d20" | "d100";
 
 export const DICE: DieType[] = ["d4", "d6", "d8", "d10", "d12", "d20", "d100"];
@@ -352,30 +357,12 @@ export function rollStartingGold(cls: string): { gp: number; notation: string } 
   return { gp, notation: `${notation} = ${gp} gp` };
 }
 
-const CLASS_STARTER_KITS: Partial<Record<CharacterClass, string[]>> = {
-  Barbarian: ["Greataxe or martial weapon", "Two handaxes", "Explorer's pack", "Four javelins"],
-  Bard: ["Rapier or longsword", "Diplomat's pack or entertainer's pack", "Lute or musical instrument", "Leather armor, dagger"],
-  Cleric: ["Mace or warhammer", "Scale mail or leather armor", "Light crossbow", "Priest's pack", "Shield, holy symbol"],
-  Druid: ["Wooden shield", "Scimitar", "Leather armor", "Explorer's pack", "Druidic focus"],
-  Fighter: ["Chain mail or leather armor", "Martial weapon and shield", "Light crossbow", "Dungeoneer's pack"],
-  Monk: ["Shortsword", "Dungeoneer's pack", "Ten darts"],
-  Paladin: ["Martial weapon and shield", "Five javelins", "Priest's pack", "Chain mail", "Holy symbol"],
-  Ranger: ["Scale mail or leather armor", "Two shortswords", "Dungeoneer's pack", "Longbow and quiver"],
-  Rogue: ["Rapier or shortsword", "Shortbow", "Burglar's pack or dungeoneer's pack", "Leather armor, two daggers, thieves' tools"],
-  Sorcerer: ["Light crossbow", "Component pouch or arcane focus", "Dungeoneer's pack", "Two daggers"],
-  Warlock: ["Light crossbow", "Component pouch or arcane focus", "Scholar's pack", "Leather armor, dagger"],
-  Wizard: ["Quarterstaff or dagger", "Component pouch or arcane focus", "Scholar's pack", "Spellbook"],
-};
-
-export function classStarterKit(cls: string): string[] {
-  return CLASS_STARTER_KITS[cls as CharacterClass] ?? ["Basic adventuring gear"];
-}
-
 export function buildStartingInventory(
   cls: string,
   background: string,
   option: "kit" | "wealth",
   goldRoll?: { gp: number; notation: string },
+  kitChoices?: Record<string, number>,
 ): { name: string; quantity: number; description?: string }[] {
   const bg = getBackground(background);
   const items: { name: string; quantity: number; description?: string }[] = [];
@@ -387,9 +374,8 @@ export function buildStartingInventory(
       description: `Rolled ${goldRoll.notation}`,
     });
   } else {
-    for (const entry of classStarterKit(cls)) {
-      items.push({ name: entry, quantity: 1 });
-    }
+    items.push(...resolveClassEquipment(cls, kitChoices ?? {}));
+    items.push(...resolveBackgroundEquipment(background));
   }
 
   if (bg) {
@@ -399,9 +385,14 @@ export function buildStartingInventory(
       description: bg.feature,
     });
     items.push({
-      name: "Background proficiencies",
+      name: "Skill proficiencies",
       quantity: 1,
-      description: `${bg.skills.join(", ")} · ${bg.tools}`,
+      description: bg.skills.join(", "),
+    });
+    items.push({
+      name: "Tool proficiencies",
+      quantity: 1,
+      description: bg.tools,
     });
   }
 

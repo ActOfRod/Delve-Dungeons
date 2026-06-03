@@ -27,6 +27,12 @@ import {
   type AbilityKey,
   type AbilityScores,
 } from "@/lib/dnd";
+import {
+  defaultClassEquipmentChoices,
+  getClassEquipmentDefinition,
+  resolveBackgroundEquipment,
+  resolveClassEquipment,
+} from "@/lib/class-starting-equipment";
 import { createCharacter, type ActionResult } from "./actions";
 
 const UNASSIGNED_SCORES: AbilityScores = {
@@ -71,9 +77,25 @@ export function CharacterForm({ onDone }: { onDone: () => void }) {
   const [halfElfA, setHalfElfA] = useState<AbilityKey>("str");
   const [halfElfB, setHalfElfB] = useState<AbilityKey>("dex");
   const [equipmentOption, setEquipmentOption] = useState<"kit" | "wealth">("kit");
+  const [kitChoices, setKitChoices] = useState<Record<string, number>>(() =>
+    defaultClassEquipmentChoices(CLASSES[0]),
+  );
   const [goldPreview, setGoldPreview] = useState<{ gp: number; notation: string } | null>(
     null,
   );
+
+  const classEquipment = useMemo(
+    () => getClassEquipmentDefinition(klass),
+    [klass],
+  );
+
+  const kitPreview = useMemo(() => {
+    if (equipmentOption !== "kit") return [];
+    return [
+      ...resolveClassEquipment(klass, kitChoices),
+      ...resolveBackgroundEquipment(background),
+    ];
+  }, [equipmentOption, klass, background, kitChoices]);
 
   useEffect(() => {
     if (state.ok) {
@@ -206,7 +228,10 @@ export function CharacterForm({ onDone }: { onDone: () => void }) {
             name="klass"
             label="Class"
             value={klass}
-            onChange={setKlass}
+            onChange={(value) => {
+              setKlass(value);
+              setKitChoices(defaultClassEquipmentChoices(value));
+            }}
             options={[...CLASSES]}
           />
         </div>
@@ -388,6 +413,78 @@ export function CharacterForm({ onDone }: { onDone: () => void }) {
         {equipmentOption === "wealth" && goldPreview && (
           <p className="text-xs text-gold">{goldPreview.notation}</p>
         )}
+        {equipmentOption === "kit" && (
+          <div className="space-y-3 rounded-xl border border-white/5 bg-black/20 p-3">
+            <p className="text-xs text-parchment/55">
+              Player&apos;s Handbook class package, plus background gear from{" "}
+              <span className="text-parchment/75">{background}</span>.
+            </p>
+
+            {classEquipment?.choices.map((group) => (
+              <div key={group.id}>
+                <div className="text-[11px] font-medium uppercase tracking-wide text-parchment/45">
+                  {group.prompt}
+                </div>
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                  {group.options.map((option, index) => (
+                    <button
+                      key={option.label}
+                      type="button"
+                      onClick={() =>
+                        setKitChoices((prev) => ({ ...prev, [group.id]: index }))
+                      }
+                      className={`rounded-lg border px-2.5 py-1.5 text-left text-xs transition ${
+                        (kitChoices[group.id] ?? 0) === index
+                          ? "border-ember/40 bg-ember/10 text-parchment"
+                          : "border-white/10 text-parchment/55 hover:border-gold/30"
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+                <input
+                  type="hidden"
+                  name={`kit_choice_${group.id}`}
+                  value={kitChoices[group.id] ?? 0}
+                />
+              </div>
+            ))}
+
+            {classEquipment && classEquipment.fixed.length > 0 && (
+              <p className="text-xs text-parchment/45">
+                <span className="text-parchment/60">Always included:</span>{" "}
+                {classEquipment.fixed
+                  .map((i) => (i.quantity > 1 ? `${i.name} ×${i.quantity}` : i.name))
+                  .join(", ")}
+              </p>
+            )}
+
+            {kitPreview.length > 0 && (
+              <div className="border-t border-white/5 pt-3">
+                <div className="mb-2 text-[11px] font-medium uppercase tracking-wide text-parchment/45">
+                  Inventory preview ({kitPreview.length} items)
+                </div>
+                <ul className="max-h-40 space-y-1 overflow-y-auto text-xs text-parchment/70">
+                  {kitPreview.map((gear, index) => (
+                    <li key={`${gear.name}-${index}`} className="flex justify-between gap-2">
+                      <span>
+                        {gear.name}
+                        {gear.quantity > 1 ? ` ×${gear.quantity}` : ""}
+                      </span>
+                      {gear.description && (
+                        <span className="shrink-0 max-w-[45%] truncate text-parchment/35">
+                          {gear.description}
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+
       </section>
 
       <TextAreaField
