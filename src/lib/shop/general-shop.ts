@@ -1,4 +1,5 @@
 import { getPoolForArchetype, archetypeForClass, type ShopCatalogEntry } from "./catalog";
+import { rollHealingPotionStock } from "./healing-potions";
 import {
   nearestRarity,
   rollPriceForSlot,
@@ -66,18 +67,6 @@ function pickFromPool(
   return bucket[Math.floor(random() * bucket.length)]!;
 }
 
-function slot1Potions(): GeneralShopListing {
-  return {
-    slot: 1,
-    name: "Potion of Healing",
-    quantity: 2,
-    rarity: "common",
-    priceGp: 100,
-    category: "Potions",
-    description: "Each potion restores 2d4+2 hit points.",
-  };
-}
-
 function rollStockSlot(
   slot: 2 | 3 | 4,
   archetype: ReturnType<typeof archetypeForClass>,
@@ -99,7 +88,7 @@ function rollStockSlot(
 
 /**
  * Generate four shop listings for levels 1–5.
- * Slot 1 is always two healing potions; slots 2–4 use class-tailored pools.
+ * Slot 1 is always a healing potion line (tier/qty rolled); slots 2–4 use class pools.
  */
 export function generateGeneralShopStock(
   klass: string,
@@ -116,7 +105,7 @@ export function generateGeneralShopStock(
   const archetype = archetypeForClass(klass);
 
   return [
-    slot1Potions(),
+    rollHealingPotionStock(random),
     rollStockSlot(2, archetype, random),
     rollStockSlot(3, archetype, random),
     rollStockSlot(4, archetype, random),

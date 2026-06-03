@@ -21,3 +21,7 @@ export {
   generateGeneralShopStock,
   type GeneralShopListing,
 } from "./general-shop";
+export {
+  rollHealingPotionStock,
+  SUPREME_HEALING_SPAWN_PERCENT,
+} from "./healing-potions";
