@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { parseDmDialogueLength } from "@/lib/dm-dialogue-length";
 import { createClient } from "@/lib/supabase/server";
 import {
   ABILITIES,
@@ -137,7 +138,6 @@ export async function createCharacter(
 
   if (error) return { error: error.message };
   revalidatePath("/dashboard");
-  revalidatePath("/dashboard/vault");
   return { ok: true };
 }
 
@@ -161,6 +161,7 @@ export async function createCampaign(
   const characterId = String(formData.get("character_id") || "").trim();
   const dmVoiceEnabled =
     characterId && formData.get("dm_voice_enabled") === "true";
+  const dmDialogueLength = parseDmDialogueLength(formData.get("dm_dialogue_length"));
 
   if (!name) return { error: "Give your campaign a name." };
 
@@ -186,6 +187,7 @@ export async function createCampaign(
       status: "active",
       active_character_id: characterId || null,
       dm_voice_enabled: dmVoiceEnabled,
+      dm_dialogue_length: characterId ? dmDialogueLength : "measured",
     })
     .select()
     .single();

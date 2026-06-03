@@ -4,6 +4,12 @@ import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Character } from "@/lib/types";
 import { CAMPAIGN_TEMPLATES, type CampaignTemplate } from "@/lib/campaigns";
+import {
+  DM_DIALOGUE_LENGTH_LABELS,
+  DM_DIALOGUE_LENGTHS,
+  DEFAULT_DM_DIALOGUE_LENGTH,
+  type DmDialogueLength,
+} from "@/lib/dm-dialogue-length";
 import { createCampaign, type ActionResult } from "./actions";
 import { Submit } from "./CharacterForm";
 import type { FriendOption } from "./DashboardClient";
@@ -50,6 +56,10 @@ export function CampaignForm({
     pickDefaultCharacter(characters, busyCharacterIds),
   );
   const [dmVoiceEnabled, setDmVoiceEnabled] = useState(false);
+  const [dialogueLength, setDialogueLength] = useState<DmDialogueLength>(
+    DEFAULT_DM_DIALOGUE_LENGTH,
+  );
+  const dialogueIndex = DM_DIALOGUE_LENGTHS.indexOf(dialogueLength);
 
   useEffect(() => {
     if (state.ok && state.redirect) {
@@ -247,6 +257,50 @@ export function CampaignForm({
                 name="dm_voice_enabled"
                 value={dmVoiceEnabled ? "true" : "false"}
               />
+
+              <div className="mt-4 border-t border-white/5 pt-4">
+                <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-parchment/55">
+                  Tale&apos;s pace
+                </span>
+                <p className="mb-3 text-[11px] leading-snug text-parchment/45">
+                  How wordy should the Dungeon Master be?
+                </p>
+                <input
+                  type="range"
+                  min={0}
+                  max={2}
+                  step={1}
+                  value={dialogueIndex}
+                  onChange={(e) =>
+                    setDialogueLength(
+                      DM_DIALOGUE_LENGTHS[Number(e.target.value)] ??
+                        DEFAULT_DM_DIALOGUE_LENGTH,
+                    )
+                  }
+                  aria-label="Dungeon Master dialogue length"
+                  aria-valuetext={DM_DIALOGUE_LENGTH_LABELS[dialogueLength]}
+                  className="dd-dialogue-slider w-full cursor-pointer accent-gold"
+                />
+                <div className="mt-2 grid grid-cols-3 gap-1 text-center text-[11px]">
+                  {DM_DIALOGUE_LENGTHS.map((key) => (
+                    <span
+                      key={key}
+                      className={
+                        key === dialogueLength
+                          ? "font-medium text-gold"
+                          : "text-parchment/40"
+                      }
+                    >
+                      {DM_DIALOGUE_LENGTH_LABELS[key]}
+                    </span>
+                  ))}
+                </div>
+                <input
+                  type="hidden"
+                  name="dm_dialogue_length"
+                  value={dialogueLength}
+                />
+              </div>
             </div>
           )}
         </label>

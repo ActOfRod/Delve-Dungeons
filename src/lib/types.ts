@@ -4,6 +4,8 @@ export type SenderType = "player" | "dm" | "system";
 export type CampaignStatus = "active" | "paused" | "completed";
 export type MemberRole = "dm" | "player";
 
+export type DmDialogueLength = "brief" | "measured" | "long_winded";
+
 export type ItemCategory = "weapon" | "armor" | "potion" | "key" | "other";
 
 export interface InventoryItem {
@@ -100,6 +102,7 @@ export interface Campaign {
   pending_check: PendingCheck | null;
   /** When true, Gemini TTS reads AI DM narration aloud for this table. */
   dm_voice_enabled: boolean;
+  dm_dialogue_length: DmDialogueLength;
   created_at: string;
 }
 

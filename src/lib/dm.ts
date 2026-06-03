@@ -1,4 +1,12 @@
+import {
+  DEFAULT_DM_DIALOGUE_LENGTH,
+  dialogueLengthGuide,
+  openingSceneLengthHint,
+  type DmDialogueLength,
+} from "./dm-dialogue-length";
 import type { Campaign, Character, Message } from "./types";
+
+export type { DmDialogueLength };
 
 export interface DMContext {
   campaign: Pick<Campaign, "name" | "description" | "setting">;
@@ -7,6 +15,7 @@ export interface DMContext {
   activeCharacterName?: string | null;
   /** Shorter narration when TTS voice mode is on. */
   dmVoiceEnabled?: boolean;
+  dmDialogueLength?: DmDialogueLength;
 }
 
 export interface CheckResultContext {
@@ -19,15 +28,15 @@ export interface CheckResultContext {
 
 export function buildSystemPrompt(
   ctx: DMContext,
-  options?: { voiceMode?: boolean },
+  options?: { voiceMode?: boolean; dialogueLength?: DmDialogueLength },
 ): string {
   const party = ctx.party
     .map((c) => `- ${c.name}, a level ${c.level} ${c.race} ${c.klass}`)
     .join("\n");
 
-  const lengthGuide = options?.voiceMode
-    ? "- Narrate in 2–3 concise paragraphs suited for reading aloud. Keep responses focused; avoid long lists."
-    : "- Narrate vividly in 2–5 paragraphs. Include sensory detail, clear outcomes for player actions, and NPC dialogue when someone speaks. Second person, present tense.";
+  const dialogueLength =
+    options?.dialogueLength ?? ctx.dmDialogueLength ?? DEFAULT_DM_DIALOGUE_LENGTH;
+  const lengthGuide = dialogueLengthGuide(dialogueLength, options?.voiceMode);
 
   return `You are the Dungeon Master for a text-based Dungeons & Dragons (5e) game called "${ctx.campaign.name}".
 ${ctx.campaign.setting ? `Tone & setting: ${ctx.campaign.setting}.` : ""}
@@ -73,11 +82,11 @@ export function parseCheckDirective(
   return { skill, dc, cleaned };
 }
 
-const OPENING_USER_PROMPT =
-  "Begin the adventure at the START of the story — wherever the heroes are when the action first opens, not at a later destination. Use the premise for context but do not quote DM instructions from it (e.g. 'Begin by…', 'Open as…', 'lead them to…'). Set one vivid scene in 3–5 paragraphs: place, mood, hook, and an invitation to act. Do not call for a skill check yet.";
-
-export function openingUserPrompt(): string {
-  return OPENING_USER_PROMPT;
+export function openingUserPrompt(
+  dialogueLength: DmDialogueLength = DEFAULT_DM_DIALOGUE_LENGTH,
+): string {
+  const sceneLength = openingSceneLengthHint(dialogueLength);
+  return `Begin the adventure at the START of the story — wherever the heroes are when the action first opens, not at a later destination. Use the premise for context but do not quote DM instructions from it (e.g. 'Begin by…', 'Open as…', 'lead them to…'). Set one vivid scene in ${sceneLength}: place, mood, hook, and an invitation to act. Do not call for a skill check yet.`;
 }
 
 export function checkResultUserPrompt(result: CheckResultContext): string {
