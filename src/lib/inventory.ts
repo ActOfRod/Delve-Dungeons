@@ -17,7 +17,7 @@ const ARMOR_KEYWORDS =
 const POTION_KEYWORDS = /\b(potion|elixir|philter|draught|oil of)\b/i;
 
 const KEY_KEYWORDS =
-  /\b(feature|proficienc|holy symbol|spellbook|focus|symbol|letter|pedigree|map|trophy|charm|token|insignia|passage|contact|identity|discovery|rank|secrets|demand|incense|vestments|prayer|wheel|book of lore)\b/i;
+  /\b(proficienc|holy symbol|spellbook|focus|symbol|letter|pedigree|map|trophy|charm|token|insignia|passage|contact|identity|discovery|rank|secrets|demand|incense|vestments|prayer|wheel|book of lore)\b/i;
 
 const PACK_KEYWORDS = /\bpack\b/i;
 
@@ -26,14 +26,19 @@ const CURRENCY_KEYWORDS =
 
 const META_KEYWORDS = /\bbackground\b/i;
 
-/** Background skill/tool rows stored on characters — not physical stash loot. */
-export function isProficiencyRecordItem(name: string): boolean {
+/**
+ * Character-sheet rows (skills, tools, background features) — not physical stash loot.
+ * A future Skills/Attributes menu will surface these.
+ */
+export function isCharacterSheetRecordItem(name: string): boolean {
   const n = name.trim().toLowerCase();
-  return n === "skill proficiencies" || n === "tool proficiencies";
+  if (n === "skill proficiencies" || n === "tool proficiencies") return true;
+  if (n === "background proficiencies") return true;
+  return /feature$/i.test(name.trim());
 }
 
 export function filterPhysicalInventoryItems<T extends InventoryItem>(items: T[]): T[] {
-  return items.filter((item) => !isProficiencyRecordItem(item.name));
+  return items.filter((item) => !isCharacterSheetRecordItem(item.name));
 }
 
 export function categorizeItemName(name: string): ItemCategory {

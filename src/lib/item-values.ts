@@ -1,5 +1,5 @@
 import type { InventoryItem, ItemCategory } from "./types";
-import { categorizeItemName } from "./inventory";
+import { categorizeItemName, isCharacterSheetRecordItem } from "./inventory";
 
 /** Per-unit value in gold pieces (PHB equipment prices, rounded for play). */
 const ITEM_VALUE_GP: Record<string, number> = {
@@ -128,10 +128,7 @@ function isNarrativeMetaItem(name: string): boolean {
 export function getItemUnitValueGp(name: string): number {
   const key = normalizeItemName(name);
   if (key in ITEM_VALUE_GP) return ITEM_VALUE_GP[key]!;
-  if (isNarrativeMetaItem(name)) return 0;
-
-  // "Acolyte feature" etc.
-  if (/\bfeature$/i.test(name.trim())) return 0;
+  if (isNarrativeMetaItem(name) || isCharacterSheetRecordItem(name)) return 0;
 
   const cat = categorizeItemName(name);
   return CATEGORY_DEFAULT_GP[cat];

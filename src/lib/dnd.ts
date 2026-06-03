@@ -364,7 +364,6 @@ export function buildStartingInventory(
   goldRoll?: { gp: number; notation: string },
   kitChoices?: Record<string, number>,
 ): { name: string; quantity: number; description?: string }[] {
-  const bg = getBackground(background);
   const items: { name: string; quantity: number; description?: string }[] = [];
 
   if (option === "wealth" && goldRoll) {
@@ -376,14 +375,6 @@ export function buildStartingInventory(
   } else {
     items.push(...resolveClassEquipment(cls, kitChoices ?? {}));
     items.push(...resolveBackgroundEquipment(background));
-  }
-
-  if (bg) {
-    items.push({
-      name: `${bg.name} feature`,
-      quantity: 1,
-      description: bg.feature,
-    });
   }
 
   return items;
