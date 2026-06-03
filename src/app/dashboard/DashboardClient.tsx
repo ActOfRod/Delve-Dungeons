@@ -164,7 +164,7 @@ export function DashboardClient({
                 body="Roll up your first adventurer — choose a race, class, and ability scores."
               />
             ) : (
-              <div className="grid gap-5 sm:grid-cols-1 lg:grid-cols-2">
+              <div className="grid max-w-xl grid-cols-1 gap-5">
                 {characters.map((c) => (
                   <CharacterCard
                     key={c.id}
@@ -318,16 +318,16 @@ function CharacterCard({
         />
       </div>
       <button onClick={onInspect} className="block w-full text-left">
-        <div className="flex items-start justify-between gap-3 pr-10">
-          <div className="min-w-0">
-            <h3 className="font-display text-xl text-parchment sm:text-2xl">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4 pr-11">
+          <div>
+            <h3 className="font-display text-xl break-words text-parchment sm:text-2xl">
               {character.name}
             </h3>
             <p className="mt-1 text-sm text-parchment/60 sm:text-base">
               Level {character.level} {character.race} {character.klass}
             </p>
           </div>
-          <div className="shrink-0 rounded-lg border border-blood/30 bg-blood/10 px-3 py-1.5 text-center">
+          <div className="rounded-lg border border-blood/30 bg-blood/10 px-3 py-1.5 text-center">
             <div className="text-xs text-parchment/50">HP</div>
             <div className="text-base font-semibold text-red-200">
               {character.current_hp}/{character.max_hp}
