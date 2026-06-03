@@ -136,41 +136,65 @@ export function DashboardClient({
         )}
       </section>
 
-      {/* Characters --------------------------------------------------------- */}
+      {/* Heroes & stash ------------------------------------------------------- */}
       <section className="mt-12">
-        <div className="mb-5 flex items-end justify-between">
-          <div>
-            <h2 className="font-display text-2xl text-parchment">Your heroes</h2>
-            <p className="text-sm text-parchment/60">
-              Build a roster of adventurers to bring to the table.
-            </p>
-          </div>
-          <button
-            onClick={() => setShowCharacter(true)}
-            className="rounded-full bg-gradient-to-r from-ember to-ember-bright px-4 py-2 text-sm font-medium text-ink transition hover:scale-[1.02]"
-          >
-            + New hero
-          </button>
-        </div>
+        <div className="grid gap-8 lg:grid-cols-[1fr_minmax(220px,280px)]">
+          <div className="min-w-0">
+            <div className="mb-5 flex items-end justify-between gap-4">
+              <div>
+                <h2 className="font-display text-2xl text-parchment">Your heroes</h2>
+                <p className="text-sm text-parchment/60">
+                  Build a roster of adventurers to bring to the table.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowCharacter(true)}
+                className="shrink-0 rounded-full bg-gradient-to-r from-ember to-ember-bright px-4 py-2 text-sm font-medium text-ink transition hover:scale-[1.02]"
+              >
+                + New hero
+              </button>
+            </div>
 
-        {characters.length === 0 ? (
-          <EmptyState
-            icon="⚔️"
-            title="No heroes yet"
-            body="Roll up your first adventurer — choose a race, class, and ability scores."
-          />
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {characters.map((c) => (
-              <CharacterCard
-                key={c.id}
-                character={c}
-                onInspect={() => setInspecting(c)}
-                onDelete={() => handleDeleteCharacter(c)}
+            {characters.length === 0 ? (
+              <EmptyState
+                icon="⚔️"
+                title="No heroes yet"
+                body="Roll up your first adventurer — choose a race, class, and ability scores."
               />
-            ))}
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2">
+                {characters.map((c) => (
+                  <CharacterCard
+                    key={c.id}
+                    character={c}
+                    onInspect={() => setInspecting(c)}
+                    onDelete={() => handleDeleteCharacter(c)}
+                  />
+                ))}
+              </div>
+            )}
           </div>
-        )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <Link
+              href="/dashboard/vault"
+              className="dd-panel dd-card-hover flex aspect-square flex-col items-center justify-center rounded-2xl p-4 text-center transition"
+            >
+              <span className="text-2xl" aria-hidden>
+                🏦
+              </span>
+              <span className="mt-2 font-display text-sm text-parchment">Your Vault</span>
+              <span className="mt-1 text-[11px] text-parchment/45">
+                {vaultItemCount > 0
+                  ? `${vaultItemCount} items`
+                  : "Inventory manager"}
+              </span>
+            </Link>
+            <StashPlaceholder label="Coming Soon" />
+            <StashPlaceholder label="Coming Soon" />
+            <StashPlaceholder label="Coming Soon" />
+          </div>
+        </div>
       </section>
 
       <Modal
@@ -318,6 +342,20 @@ function CharacterCard({
           ))}
         </div>
       </button>
+    </div>
+  );
+}
+
+function StashPlaceholder({ label }: { label: string }) {
+  return (
+    <div
+      className="dd-panel flex aspect-square flex-col items-center justify-center rounded-2xl border-dashed p-4 text-center opacity-60"
+      aria-disabled
+    >
+      <span className="text-2xl text-parchment/25" aria-hidden>
+        🔒
+      </span>
+      <span className="mt-2 font-display text-sm text-parchment/50">{label}</span>
     </div>
   );
 }
