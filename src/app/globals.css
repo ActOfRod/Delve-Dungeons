@@ -151,6 +151,20 @@ body {
     0 8px 28px -8px rgba(124, 107, 214, 0.35);
 }
 
+.dd-stash-tile-general {
+  border-color: rgba(200, 120, 60, 0.4);
+  background: linear-gradient(
+    145deg,
+    rgba(200, 120, 60, 0.12),
+    rgba(124, 107, 214, 0.08) 50%,
+    rgba(13, 11, 22, 0.92)
+  );
+}
+
+.dd-stash-tile-locked:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
 .dd-dialogue-slider {
   height: 0.35rem;
   appearance: none;
