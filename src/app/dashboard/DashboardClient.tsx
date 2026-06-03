@@ -138,23 +138,23 @@ export function DashboardClient({
 
       {/* Heroes & stash ------------------------------------------------------- */}
       <section className="mt-12">
-        <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <h2 className="font-display text-2xl text-parchment">Your heroes</h2>
-            <p className="text-sm text-parchment/60">
-              Build a roster of adventurers to bring to the table.
-            </p>
-          </div>
-          <button
-            onClick={() => setShowCharacter(true)}
-            className="shrink-0 rounded-full bg-gradient-to-r from-ember to-ember-bright px-4 py-2 text-sm font-medium text-ink transition hover:scale-[1.02]"
-          >
-            + New hero
-          </button>
-        </div>
+        <div className="mb-6 flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
+          <div className="min-w-0 flex-1">
+            <div className="mb-5 flex flex-wrap items-end gap-3">
+              <div>
+                <h2 className="font-display text-2xl text-parchment">Your heroes</h2>
+                <p className="mt-1 text-sm text-parchment/60">
+                  Build a roster of adventurers to bring to the table.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowCharacter(true)}
+                className="shrink-0 rounded-full bg-gradient-to-r from-ember to-ember-bright px-4 py-2 text-sm font-medium text-ink shadow-md shadow-ember/25 transition hover:scale-[1.02]"
+              >
+                + New hero
+              </button>
+            </div>
 
-        <div className="grid gap-6 lg:grid-cols-3 lg:items-start">
-          <div className="min-w-0 lg:col-span-2">
             {characters.length === 0 ? (
               <EmptyState
                 icon="⚔️"
@@ -162,7 +162,7 @@ export function DashboardClient({
                 body="Roll up your first adventurer — choose a race, class, and ability scores."
               />
             ) : (
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-4 sm:grid-cols-2 xl:max-w-2xl">
                 {characters.map((c) => (
                   <CharacterCard
                     key={c.id}
@@ -175,25 +175,30 @@ export function DashboardClient({
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-3 sm:gap-4">
-            <Link
-              href="/dashboard/vault"
-              className="dd-panel dd-card-hover flex aspect-square min-h-[7.5rem] flex-col items-center justify-center rounded-2xl p-3 text-center transition sm:min-h-[8.5rem] sm:p-4"
-            >
-              <span className="text-2xl" aria-hidden>
-                🏦
-              </span>
-              <span className="mt-2 font-display text-sm text-parchment">Your Vault</span>
-              <span className="mt-1 text-[11px] text-parchment/45">
-                {vaultItemCount > 0
-                  ? `${vaultItemCount} items`
-                  : "Inventory manager"}
-              </span>
-            </Link>
-            <StashPlaceholder label="Coming Soon" />
-            <StashPlaceholder label="Coming Soon" />
-            <StashPlaceholder label="Coming Soon" />
-          </div>
+          <aside className="w-full shrink-0 lg:w-[min(100%,20rem)] xl:w-80">
+            <p className="mb-3 hidden text-xs font-medium uppercase tracking-wide text-parchment/45 lg:block">
+              Stash &amp; trading
+            </p>
+            <div className="grid grid-cols-2 gap-4">
+              <Link
+                href="/dashboard/vault"
+                className="dd-stash-tile dd-stash-tile-vault group flex min-h-[9.5rem] flex-col items-center justify-center rounded-2xl p-4 text-center sm:min-h-[10.5rem]"
+              >
+                <span className="text-3xl transition group-hover:scale-110" aria-hidden>
+                  🏦
+                </span>
+                <span className="mt-3 font-display text-base text-parchment">Your Vault</span>
+                <span className="mt-1 text-xs text-gold/90">
+                  {vaultItemCount > 0
+                    ? `${vaultItemCount} items`
+                    : "Inventory manager"}
+                </span>
+              </Link>
+              <StashPlaceholder label="Coming Soon" />
+              <StashPlaceholder label="Coming Soon" />
+              <StashPlaceholder label="Coming Soon" />
+            </div>
+          </aside>
         </div>
       </section>
 
@@ -349,13 +354,13 @@ function CharacterCard({
 function StashPlaceholder({ label }: { label: string }) {
   return (
     <div
-      className="dd-panel flex aspect-square min-h-[7.5rem] flex-col items-center justify-center rounded-2xl border-dashed p-3 text-center opacity-60 sm:min-h-[8.5rem] sm:p-4"
+      className="dd-stash-tile flex min-h-[9.5rem] flex-col items-center justify-center rounded-2xl border border-dashed border-white/10 bg-black/20 p-4 text-center opacity-55 sm:min-h-[10.5rem]"
       aria-disabled
     >
       <span className="text-2xl text-parchment/25" aria-hidden>
         🔒
       </span>
-      <span className="mt-2 font-display text-sm text-parchment/50">{label}</span>
+      <span className="mt-3 font-display text-sm text-parchment/45">{label}</span>
     </div>
   );
 }

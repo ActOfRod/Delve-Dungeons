@@ -117,3 +117,36 @@ body {
   border-color: rgba(216, 180, 106, 0.4);
   box-shadow: 0 12px 40px -12px rgba(124, 107, 214, 0.35);
 }
+
+.dd-stash-tile {
+  background: linear-gradient(165deg, rgba(28, 24, 42, 0.95), rgba(12, 10, 20, 0.95));
+  border: 1px solid rgba(216, 180, 106, 0.22);
+  box-shadow:
+    0 4px 24px -8px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+  transition:
+    transform 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.dd-stash-tile-vault {
+  border-color: rgba(216, 180, 106, 0.45);
+  background: linear-gradient(
+    145deg,
+    rgba(216, 180, 106, 0.14),
+    rgba(124, 107, 214, 0.12) 45%,
+    rgba(13, 11, 22, 0.92)
+  );
+  box-shadow:
+    0 8px 32px -10px rgba(216, 180, 106, 0.35),
+    0 4px 20px -8px rgba(124, 107, 214, 0.25);
+}
+
+.dd-stash-tile-vault:hover {
+  transform: translateY(-3px) scale(1.02);
+  border-color: rgba(216, 180, 106, 0.65);
+  box-shadow:
+    0 16px 48px -12px rgba(216, 180, 106, 0.45),
+    0 8px 28px -8px rgba(124, 107, 214, 0.35);
+}
