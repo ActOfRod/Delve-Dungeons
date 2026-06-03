@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import type { Campaign, CampaignMember, Character } from "@/lib/types";
 import { Modal } from "@/components/Modal";
 import { KebabMenu } from "@/components/KebabMenu";
+import { CharacterForm } from "./CharacterForm";
 import { CampaignForm } from "./CampaignForm";
 import { JoinForm } from "./JoinForm";
 import { CharacterInspect } from "./CharacterInspect";
@@ -21,14 +22,17 @@ export function DashboardClient({
   characters,
   campaigns,
   friends,
+  vaultItemCount = 0,
 }: {
   currentUserId: string;
   characters: Character[];
   campaigns: CampaignEntry[];
   friends: FriendOption[];
+  vaultItemCount?: number;
 }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
+  const [showCharacter, setShowCharacter] = useState(false);
   const [showCampaign, setShowCampaign] = useState(false);
   const [showJoin, setShowJoin] = useState(false);
   const [joinCode, setJoinCode] = useState("");
@@ -141,21 +145,19 @@ export function DashboardClient({
               Build a roster of adventurers to bring to the table.
             </p>
           </div>
-          <Link
-            href="/dashboard/heroes/new"
+          <button
+            onClick={() => setShowCharacter(true)}
             className="rounded-full bg-gradient-to-r from-ember to-ember-bright px-4 py-2 text-sm font-medium text-ink transition hover:scale-[1.02]"
           >
             + New hero
-          </Link>
+          </button>
         </div>
 
         {characters.length === 0 ? (
           <EmptyState
             icon="⚔️"
             title="No heroes yet"
-            body="Roll up your first adventurer — backgrounds, point buy, standard array, or rolled scores, plus starting gear."
-            actionHref="/dashboard/heroes/new"
-            actionLabel="Create your first hero"
+            body="Roll up your first adventurer — choose a race, class, and ability scores."
           />
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -170,6 +172,15 @@ export function DashboardClient({
           </div>
         )}
       </section>
+
+      <Modal
+        open={showCharacter}
+        onClose={() => setShowCharacter(false)}
+        title="Create a hero"
+        wide
+      >
+        <CharacterForm onDone={() => setShowCharacter(false)} />
+      </Modal>
 
       <Modal
         open={showCampaign}
@@ -276,32 +287,19 @@ function CharacterCard({
         />
       </div>
       <button onClick={onInspect} className="block w-full text-left">
-        <div className="flex items-start justify-between gap-2 pr-8">
-          <div className="min-w-0">
+        <div className="flex items-start justify-between pr-8">
+          <div>
             <h3 className="font-display text-lg text-parchment">
               {character.name}
             </h3>
             <p className="text-sm text-parchment/60">
               Level {character.level} {character.race} {character.klass}
             </p>
-            {character.background && (
-              <p className="mt-0.5 truncate text-xs text-parchment/45">
-                {character.background}
-              </p>
-            )}
           </div>
-          <div className="flex shrink-0 gap-1.5">
-            <div className="rounded-lg border border-gold/20 bg-gold/5 px-2.5 py-1 text-center">
-              <div className="text-xs text-parchment/50">AC</div>
-              <div className="text-sm font-semibold text-gold">
-                {character.armor_class}
-              </div>
-            </div>
-            <div className="rounded-lg border border-blood/30 bg-blood/10 px-2.5 py-1 text-center">
-              <div className="text-xs text-parchment/50">HP</div>
-              <div className="text-sm font-semibold text-red-200">
-                {character.current_hp}/{character.max_hp}
-              </div>
+          <div className="rounded-lg border border-blood/30 bg-blood/10 px-2.5 py-1 text-center">
+            <div className="text-xs text-parchment/50">HP</div>
+            <div className="text-sm font-semibold text-red-200">
+              {character.current_hp}/{character.max_hp}
             </div>
           </div>
         </div>
@@ -328,28 +326,16 @@ function EmptyState({
   icon,
   title,
   body,
-  actionHref,
-  actionLabel,
 }: {
   icon: string;
   title: string;
   body: string;
-  actionHref?: string;
-  actionLabel?: string;
 }) {
   return (
     <div className="dd-panel rounded-2xl border-dashed p-10 text-center">
       <div className="mx-auto mb-3 text-4xl">{icon}</div>
       <h3 className="font-display text-lg text-parchment">{title}</h3>
       <p className="mx-auto mt-1 max-w-md text-sm text-parchment/60">{body}</p>
-      {actionHref && actionLabel && (
-        <Link
-          href={actionHref}
-          className="mt-5 inline-block rounded-full bg-gradient-to-r from-ember to-ember-bright px-5 py-2.5 text-sm font-medium text-ink transition hover:scale-[1.02]"
-        >
-          {actionLabel}
-        </Link>
-      )}
     </div>
   );
 }
