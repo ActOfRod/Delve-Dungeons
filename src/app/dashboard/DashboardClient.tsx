@@ -196,9 +196,9 @@ export function DashboardClient({
                     : "Inventory manager"}
                 </span>
               </Link>
-              <StashPlaceholder label="Coming Soon" />
-              <StashPlaceholder label="Coming Soon" />
-              <StashPlaceholder label="Coming Soon" />
+              <StashTheGeneralTile />
+              <StashComingSoonTile title="Nexus Vault" icon="🌐" />
+              <StashComingSoonTile title="Coming Soon" />
             </div>
           </aside>
         </div>
@@ -355,16 +355,48 @@ function CharacterCard({
   );
 }
 
-function StashPlaceholder({ label }: { label: string }) {
+function StashTheGeneralTile() {
   return (
     <div
-      className="dd-stash-tile flex h-[9.5rem] w-full flex-col items-center justify-center rounded-2xl border border-dashed border-white/10 bg-black/20 p-4 text-center opacity-55"
-      aria-disabled
+      className="dd-stash-tile dd-stash-tile-general flex h-[9.5rem] w-full flex-col items-center justify-center rounded-2xl p-4 text-center"
+      title="Local shop — stock scales to your level and refreshes daily (coming soon)"
     >
-      <span className="text-2xl text-parchment/25" aria-hidden>
-        🔒
+      <span className="text-3xl" aria-hidden>
+        🏪
       </span>
-      <span className="mt-3 font-display text-sm text-parchment/45">{label}</span>
+      <span className="mt-3 font-display text-base text-parchment">The General</span>
+      <span className="mt-1 text-xs leading-snug text-parchment/50">
+        Potions &amp; gear by level
+      </span>
+      <span className="mt-0.5 text-[10px] text-ember-bright/80">Daily refresh · soon</span>
+    </div>
+  );
+}
+
+function StashComingSoonTile({
+  title,
+  icon = "🔒",
+  message = "Coming soon",
+}: {
+  title: string;
+  icon?: string;
+  message?: string;
+}) {
+  return (
+    <div
+      className="group dd-stash-tile dd-stash-tile-locked relative flex h-[9.5rem] w-full cursor-default flex-col items-center justify-center overflow-hidden rounded-2xl border border-dashed border-white/10 bg-black/20 p-4 text-center opacity-55"
+      aria-disabled
+      aria-label={`${title} — ${message}`}
+    >
+      <div className="flex flex-col items-center transition-opacity group-hover:opacity-0">
+        <span className="text-2xl text-parchment/25" aria-hidden>
+          {icon}
+        </span>
+        <span className="mt-3 font-display text-sm text-parchment/45">{title}</span>
+      </div>
+      <span className="pointer-events-none absolute inset-0 flex items-center justify-center px-3 opacity-0 transition-opacity group-hover:opacity-100">
+        <span className="font-display text-sm text-parchment/75">{message}</span>
+      </span>
     </div>
   );
 }
