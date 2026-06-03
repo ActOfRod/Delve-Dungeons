@@ -4,19 +4,25 @@ export type SenderType = "player" | "dm" | "system";
 export type CampaignStatus = "active" | "paused" | "completed";
 export type MemberRole = "dm" | "player";
 
-export interface Profile {
-  id: string;
-  username: string | null;
-  display_name: string | null;
-  friend_code: string | null;
-  created_at: string;
-}
+export type ItemCategory = "weapon" | "armor" | "potion" | "key" | "other";
 
 export interface InventoryItem {
   id?: string;
   name: string;
   quantity: number;
   description?: string;
+  category?: ItemCategory;
+  /** Worn or wielded — item stays in inventory with an equipped badge. */
+  equipped?: boolean;
+}
+
+export interface Profile {
+  id: string;
+  username: string | null;
+  display_name: string | null;
+  friend_code: string | null;
+  vault_inventory: InventoryItem[];
+  created_at: string;
 }
 
 export interface InviteCode {

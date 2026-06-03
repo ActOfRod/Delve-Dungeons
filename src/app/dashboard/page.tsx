@@ -3,11 +3,13 @@ import { AppHeader } from "@/components/AppHeader";
 import { SetupNotice } from "@/components/SetupNotice";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { aggregatePlayerInventory, countInventoryItems } from "@/lib/inventory";
 import type {
   Campaign,
   Character,
   CampaignMember,
   Friendship,
+  InventoryItem,
   Profile,
 } from "@/lib/types";
 import { DashboardClient, type FriendOption } from "./DashboardClient";
@@ -70,6 +72,11 @@ export default async function DashboardPage() {
       ) ?? [];
 
   const profileRow = profile as Profile | null;
+  const characterList = (characters as Character[] | null) ?? [];
+  const vaultItems = (profileRow?.vault_inventory ?? []) as InventoryItem[];
+  const vaultItemCount = countInventoryItems(
+    aggregatePlayerInventory(vaultItems, characterList),
+  );
 
   return (
     <main className="min-h-dvh">
@@ -80,9 +87,10 @@ export default async function DashboardPage() {
       />
       <DashboardClient
         currentUserId={user.id}
-        characters={(characters as Character[] | null) ?? []}
+        characters={characterList}
         campaigns={campaigns}
         friends={friends}
+        vaultItemCount={vaultItemCount}
       />
     </main>
   );
