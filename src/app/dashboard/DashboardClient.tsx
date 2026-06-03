@@ -138,21 +138,23 @@ export function DashboardClient({
 
       {/* Heroes & stash ------------------------------------------------------- */}
       <section className="mt-12">
-        <div className="mb-6 flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
-          <div className="min-w-0 flex-1">
-            <div className="mb-5 flex flex-wrap items-end gap-3">
-              <div>
-                <h2 className="font-display text-2xl text-parchment">Your heroes</h2>
-                <p className="mt-1 text-sm text-parchment/60">
-                  Build a roster of adventurers to bring to the table.
-                </p>
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_28rem] lg:items-start">
+          <div className="min-w-0">
+            <div className="mb-5">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                <h2 className="font-display text-2xl leading-none text-parchment">
+                  Your heroes
+                </h2>
+                <button
+                  onClick={() => setShowCharacter(true)}
+                  className="shrink-0 rounded-full bg-gradient-to-r from-ember to-ember-bright px-4 py-2 text-sm font-medium leading-none text-ink shadow-md shadow-ember/25 transition hover:scale-[1.02]"
+                >
+                  + New hero
+                </button>
               </div>
-              <button
-                onClick={() => setShowCharacter(true)}
-                className="shrink-0 rounded-full bg-gradient-to-r from-ember to-ember-bright px-4 py-2 text-sm font-medium text-ink shadow-md shadow-ember/25 transition hover:scale-[1.02]"
-              >
-                + New hero
-              </button>
+              <p className="mt-2 text-sm text-parchment/60">
+                Build a roster of adventurers to bring to the table.
+              </p>
             </div>
 
             {characters.length === 0 ? (
@@ -162,7 +164,7 @@ export function DashboardClient({
                 body="Roll up your first adventurer — choose a race, class, and ability scores."
               />
             ) : (
-              <div className="grid gap-4 sm:grid-cols-2 xl:max-w-2xl">
+              <div className="grid gap-5 sm:grid-cols-1 lg:grid-cols-2">
                 {characters.map((c) => (
                   <CharacterCard
                     key={c.id}
@@ -175,14 +177,14 @@ export function DashboardClient({
             )}
           </div>
 
-          <aside className="w-full shrink-0 lg:w-[min(100%,20rem)] xl:w-80">
+          <aside className="w-full shrink-0 lg:w-[28rem]">
             <p className="mb-3 hidden text-xs font-medium uppercase tracking-wide text-parchment/45 lg:block">
               Stash &amp; trading
             </p>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3">
               <Link
                 href="/dashboard/vault"
-                className="dd-stash-tile dd-stash-tile-vault group flex min-h-[9.5rem] flex-col items-center justify-center rounded-2xl p-4 text-center sm:min-h-[10.5rem]"
+                className="dd-stash-tile dd-stash-tile-vault group flex h-[9.5rem] w-full flex-col items-center justify-center rounded-2xl p-4 text-center"
               >
                 <span className="text-3xl transition group-hover:scale-110" aria-hidden>
                   🏦
@@ -306,7 +308,7 @@ function CharacterCard({
   onDelete: () => void;
 }) {
   return (
-    <div className="dd-panel dd-card-hover relative rounded-2xl p-5">
+    <div className="dd-panel dd-card-hover relative rounded-2xl p-6">
       <div className="absolute right-3 top-3 z-10">
         <KebabMenu
           items={[
@@ -316,31 +318,33 @@ function CharacterCard({
         />
       </div>
       <button onClick={onInspect} className="block w-full text-left">
-        <div className="flex items-start justify-between pr-8">
-          <div>
-            <h3 className="font-display text-lg text-parchment">
+        <div className="flex items-start justify-between gap-3 pr-10">
+          <div className="min-w-0">
+            <h3 className="font-display text-xl text-parchment sm:text-2xl">
               {character.name}
             </h3>
-            <p className="text-sm text-parchment/60">
+            <p className="mt-1 text-sm text-parchment/60 sm:text-base">
               Level {character.level} {character.race} {character.klass}
             </p>
           </div>
-          <div className="rounded-lg border border-blood/30 bg-blood/10 px-2.5 py-1 text-center">
+          <div className="shrink-0 rounded-lg border border-blood/30 bg-blood/10 px-3 py-1.5 text-center">
             <div className="text-xs text-parchment/50">HP</div>
-            <div className="text-sm font-semibold text-red-200">
+            <div className="text-base font-semibold text-red-200">
               {character.current_hp}/{character.max_hp}
             </div>
           </div>
         </div>
-        <div className="mt-4 grid grid-cols-6 gap-1.5">
+        <div className="mt-5 grid grid-cols-6 gap-2">
           {(["str", "dex", "con", "int", "wis", "cha"] as const).map((k) => (
             <div
               key={k}
-              className="rounded-md border border-gold/10 bg-black/20 py-1.5 text-center"
+              className="rounded-lg border border-gold/10 bg-black/20 py-2.5 text-center"
             >
-              <div className="text-[10px] uppercase text-parchment/40">{k}</div>
-              <div className="text-sm text-parchment">{character.abilities[k]}</div>
-              <div className="text-[10px] text-gold">
+              <div className="text-[11px] uppercase text-parchment/40">{k}</div>
+              <div className="text-base font-medium text-parchment">
+                {character.abilities[k]}
+              </div>
+              <div className="text-xs text-gold">
                 {formatModifier(abilityModifier(character.abilities[k]))}
               </div>
             </div>
@@ -354,7 +358,7 @@ function CharacterCard({
 function StashPlaceholder({ label }: { label: string }) {
   return (
     <div
-      className="dd-stash-tile flex min-h-[9.5rem] flex-col items-center justify-center rounded-2xl border border-dashed border-white/10 bg-black/20 p-4 text-center opacity-55 sm:min-h-[10.5rem]"
+      className="dd-stash-tile flex h-[9.5rem] w-full flex-col items-center justify-center rounded-2xl border border-dashed border-white/10 bg-black/20 p-4 text-center opacity-55"
       aria-disabled
     >
       <span className="text-2xl text-parchment/25" aria-hidden>
