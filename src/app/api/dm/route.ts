@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import {
+  DEFAULT_DM_DIALOGUE_LENGTH,
+  maxOutputTokensForDialogue,
+  parseDmDialogueLength,
+} from "@/lib/dm-dialogue-length";
+import {
   buildSystemPrompt,
   buildTranscript,
   checkResultUserPrompt,
@@ -37,7 +42,7 @@ function buildPromptMessages(
 ): { role: "user" | "assistant"; content: string }[] {
   const messages = [...buildTranscript(ctx)];
   if (mode === "opening") {
-    messages.push({ role: "user", content: openingUserPrompt() });
+    messages.push({ role: "user", content: openingUserPrompt(ctx.dmDialogueLength ?? DEFAULT_DM_DIALOGUE_LENGTH) });
   } else if (mode === "checkResult" && checkResult) {
     messages.push({
       role: "user",
@@ -88,14 +93,12 @@ function geminiModelsToTry(): string[] {
   return [...new Set(list)];
 }
 
-function geminiMaxOutputTokens(model: string): number {
+function geminiEnvMaxOutputTokens(): number | undefined {
   const env = process.env.GOOGLE_GEMINI_MAX_OUTPUT_TOKENS;
-  if (env) {
-    const parsed = parseInt(env, 10);
-    if (!Number.isNaN(parsed) && parsed > 0) return parsed;
-  }
-  // Gemini 3 "thinking" consumes part of the output budget.
-  return /gemini-3/i.test(model) ? 2048 : 1024;
+  if (!env) return undefined;
+  const parsed = parseInt(env, 10);
+  if (Number.isNaN(parsed) || parsed <= 0) return undefined;
+  return parsed;
 }
 
 async function requestGemini(
@@ -103,13 +106,14 @@ async function requestGemini(
   model: string,
   contents: { role: "user" | "model"; parts: { text: string }[] }[],
   systemPrompt: string,
+  maxOutputTokens: number,
 ): Promise<
   | { ok: true; text: string }
   | { ok: false; status: number; detail: string; retry: boolean }
 > {
   const generationConfig: Record<string, unknown> = {
     temperature: 0.9,
-    maxOutputTokens: geminiMaxOutputTokens(model),
+    maxOutputTokens,
   };
   if (/gemini-3/i.test(model)) {
     generationConfig.thinkingConfig = { thinkingLevel: "minimal" };
@@ -163,17 +167,19 @@ async function generateWithGemini(
   const apiKey = process.env.GOOGLE_GEMINI_API_KEY;
   if (!apiKey) return null;
 
+  const dialogueLength = ctx.dmDialogueLength ?? DEFAULT_DM_DIALOGUE_LENGTH;
   const messages = buildPromptMessages(ctx, latestInput, mode, checkResult);
   const contents = toGeminiContents(messages);
   if (contents.length === 0) {
-    contents.push({ role: "user", parts: [{ text: openingUserPrompt() }] });
+    contents.push({ role: "user", parts: [{ text: openingUserPrompt(dialogueLength) }] });
   }
 
-  const systemPrompt = buildSystemPrompt(ctx, { voiceMode: ctx.dmVoiceEnabled });
+  const systemPrompt = buildSystemPrompt(ctx, { voiceMode: ctx.dmVoiceEnabled, dialogueLength });
 
   try {
     for (const model of geminiModelsToTry()) {
-      const result = await requestGemini(apiKey, model, contents, systemPrompt);
+      const maxOutputTokens = maxOutputTokensForDialogue(model, dialogueLength, geminiEnvMaxOutputTokens());
+      const result = await requestGemini(apiKey, model, contents, systemPrompt, maxOutputTokens);
       if (result.ok) {
         const primary = process.env.GOOGLE_GEMINI_MODEL?.trim() || GEMINI_FALLBACK_MODELS[0];
         if (model !== primary) {
@@ -208,8 +214,15 @@ async function generateWithOpenAI(
   if (!apiKey) return null;
 
   const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
+  const dialogueLength = ctx.dmDialogueLength ?? DEFAULT_DM_DIALOGUE_LENGTH;
   const messages: { role: string; content: string }[] = [
-    { role: "system", content: buildSystemPrompt(ctx, { voiceMode: ctx.dmVoiceEnabled }) },
+    {
+      role: "system",
+      content: buildSystemPrompt(ctx, {
+        voiceMode: ctx.dmVoiceEnabled,
+        dialogueLength,
+      }),
+    },
     ...buildPromptMessages(ctx, latestInput, mode, checkResult),
   ];
 
@@ -224,7 +237,11 @@ async function generateWithOpenAI(
         model,
         messages,
         temperature: 0.9,
-        max_tokens: 1024,
+        max_tokens: maxOutputTokensForDialogue(
+          model,
+          dialogueLength,
+          geminiEnvMaxOutputTokens(),
+        ),
       }),
     });
     if (!res.ok) return null;
@@ -380,6 +397,7 @@ export async function POST(request: Request) {
     recentMessages,
     activeCharacterName,
     dmVoiceEnabled: campaign.dm_voice_enabled ?? false,
+    dmDialogueLength: parseDmDialogueLength(campaign.dm_dialogue_length),
   };
 
   let resolvedCheck: CheckResultContext | null = null;
