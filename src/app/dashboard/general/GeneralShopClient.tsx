@@ -121,7 +121,7 @@ export function GeneralShopClient({
         <ul className="mt-3 list-inside list-disc space-y-1.5">
           <li>
             <strong className="text-parchment/55">Slot 1</strong> — healing potions
-            (Common → Very Rare; Supreme 10% chance, qty 1–5)
+            (70% standard / 18% greater / 9% superior / 10% supreme; qty 1–5)
           </li>
           <li>
             <strong className="text-parchment/55">Slot 2</strong> — Utility: 60%

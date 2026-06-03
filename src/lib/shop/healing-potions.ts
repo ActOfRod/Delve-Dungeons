@@ -22,7 +22,7 @@ const HEALING_POTION_TIERS: HealingPotionTier[] = [
     healFormula: "2d4+2",
     maxQuantity: 5,
     unitPriceGp: 50,
-    weight: 55,
+    weight: 70,
   },
   {
     name: "Greater Healing Potion",
@@ -30,7 +30,7 @@ const HEALING_POTION_TIERS: HealingPotionTier[] = [
     healFormula: "4d4+4",
     maxQuantity: 3,
     unitPriceGp: 150,
-    weight: 30,
+    weight: 20,
   },
   {
     name: "Superior Healing Potion",
@@ -38,7 +38,7 @@ const HEALING_POTION_TIERS: HealingPotionTier[] = [
     healFormula: "8d4+8",
     maxQuantity: 2,
     unitPriceGp: 450,
-    weight: 15,
+    weight: 10,
   },
 ];
 
