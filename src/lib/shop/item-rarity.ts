@@ -1,5 +1,5 @@
 /** Magic item rarity (D&D 5e). Shared by The General shop and future campaign loot tables. */
-export type ItemRarity = "common" | "uncommon" | "rare";
+export type ItemRarity = "common" | "uncommon" | "rare" | "very_rare";
 
 export type ShopStockSlot = 1 | 2 | 3 | 4;
 
@@ -59,7 +59,7 @@ export function rollPriceForSlot(slot: 2 | 3 | 4, random: () => number): number 
   );
 }
 
-const RARITY_ORDER: ItemRarity[] = ["common", "uncommon", "rare"];
+const RARITY_ORDER: ItemRarity[] = ["common", "uncommon", "rare", "very_rare"];
 
 export function nearestRarity(
   target: ItemRarity,

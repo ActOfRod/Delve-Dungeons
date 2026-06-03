@@ -25,6 +25,7 @@ const RARITY_STYLE: Record<ItemRarity, string> = {
   common: "border-white/20 bg-white/10 text-parchment/70",
   uncommon: "border-moss/40 bg-moss/10 text-green-200",
   rare: "border-arcane/40 bg-arcane/15 text-arcane-bright",
+  very_rare: "border-gold/50 bg-gold/15 text-gold",
 };
 
 export function GeneralShopClient({
@@ -119,8 +120,8 @@ export function GeneralShopClient({
         </summary>
         <ul className="mt-3 list-inside list-disc space-y-1.5">
           <li>
-            <strong className="text-parchment/55">Slot 1</strong> — always 2×
-            Potion of Healing
+            <strong className="text-parchment/55">Slot 1</strong> — healing potions
+            (Common → Very Rare; Supreme 10% chance, qty 1–5)
           </li>
           <li>
             <strong className="text-parchment/55">Slot 2</strong> — Utility: 60%
