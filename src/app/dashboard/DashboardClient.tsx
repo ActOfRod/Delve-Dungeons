@@ -324,16 +324,28 @@ function EmptyState({
   icon,
   title,
   body,
+  actionHref,
+  actionLabel,
 }: {
   icon: string;
   title: string;
   body: string;
+  actionHref?: string;
+  actionLabel?: string;
 }) {
   return (
     <div className="dd-panel rounded-2xl border-dashed p-10 text-center">
       <div className="mx-auto mb-3 text-4xl">{icon}</div>
       <h3 className="font-display text-lg text-parchment">{title}</h3>
       <p className="mx-auto mt-1 max-w-md text-sm text-parchment/60">{body}</p>
+      {actionHref && actionLabel && (
+        <Link
+          href={actionHref}
+          className="mt-5 inline-block rounded-full bg-gradient-to-r from-ember to-ember-bright px-5 py-2.5 text-sm font-medium text-ink transition hover:scale-[1.02]"
+        >
+          {actionLabel}
+        </Link>
+      )}
     </div>
   );
 }
