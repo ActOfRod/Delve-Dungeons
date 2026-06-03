@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Modal } from "@/components/Modal";
 import { createClient } from "@/lib/supabase/client";
 import { ItemValueBadge } from "@/components/ItemValueBadge";
+import { filterPhysicalInventoryItems } from "@/lib/inventory";
 import type { Character, InventoryItem } from "@/lib/types";
 import { ABILITIES, abilityModifier, formatModifier, getBackground, proficiencyBonus } from "@/lib/dnd";
 
@@ -48,7 +49,9 @@ export function CharacterInspect({
 
   if (!character) return null;
 
-  const inventory = (character.inventory ?? []) as InventoryItem[];
+  const inventory = filterPhysicalInventoryItems(
+    (character.inventory ?? []) as InventoryItem[],
+  );
   const bgDef = character.background ? getBackground(character.background) : undefined;
   const hpPct = Math.max(
     0,

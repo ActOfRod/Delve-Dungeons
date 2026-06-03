@@ -384,16 +384,6 @@ export function buildStartingInventory(
       quantity: 1,
       description: bg.feature,
     });
-    items.push({
-      name: "Skill proficiencies",
-      quantity: 1,
-      description: bg.skills.join(", "),
-    });
-    items.push({
-      name: "Tool proficiencies",
-      quantity: 1,
-      description: bg.tools,
-    });
   }
 
   return items;
