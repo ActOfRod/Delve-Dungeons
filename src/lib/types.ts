@@ -24,6 +24,8 @@ export interface Profile {
   display_name: string | null;
   friend_code: string | null;
   vault_inventory: InventoryItem[];
+  /** The Hearth: riddle streak, daily attempts (see parseHearthState). */
+  hearth_state?: unknown;
   created_at: string;
 }
 

@@ -198,7 +198,7 @@ export function DashboardClient({
               </Link>
               <StashTheGeneralTile />
               <StashComingSoonTile title="Nexus Vault" icon="🌐" />
-              <StashComingSoonTile title="Coming Soon" />
+              <StashTheHearthTile />
             </div>
           </aside>
         </div>
@@ -356,6 +356,24 @@ function CharacterCard({
         </div>
       </button>
     </div>
+  );
+}
+
+function StashTheHearthTile() {
+  return (
+    <Link
+      href="/dashboard/hearth"
+      className="dd-stash-tile dd-stash-tile-hearth group flex h-[9.5rem] w-full flex-col items-center justify-center rounded-2xl p-4 text-center transition hover:scale-[1.02]"
+    >
+      <span className="text-3xl transition group-hover:scale-110" aria-hidden>
+        🕯️
+      </span>
+      <span className="mt-3 font-display text-base text-parchment">The Hearth</span>
+      <span className="mt-1 text-xs leading-snug text-parchment/50">
+        Riddle &amp; puzzle
+      </span>
+      <span className="mt-0.5 text-[10px] text-ember-bright/80">Refreshes daily</span>
+    </Link>
   );
 }
 
