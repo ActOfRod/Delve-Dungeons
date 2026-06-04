@@ -21,7 +21,13 @@ const TYPE_ICON: Record<string, string> = {
   system: "✦",
 };
 
-export function NotificationBell({ userId }: { userId: string }) {
+export function NotificationBell({
+  userId,
+  variant = "icon",
+}: {
+  userId: string;
+  variant?: "icon" | "menuItem";
+}) {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
   const ref = useRef<HTMLDivElement>(null);
@@ -138,38 +144,65 @@ export function NotificationBell({ userId }: { userId: string }) {
     }
   }
 
+  const isMenuItem = variant === "menuItem";
+
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className={`relative ${isMenuItem ? "w-full" : ""}`}>
       <button
         type="button"
         aria-label="Notifications"
         onClick={() => setOpen((o) => !o)}
-        className="relative flex h-9 w-9 items-center justify-center rounded-full border border-gold/20 text-parchment/80 transition hover:border-gold/50 hover:text-parchment"
+        className={
+          isMenuItem
+            ? "relative flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-parchment transition hover:bg-white/5"
+            : "relative flex h-9 w-9 items-center justify-center rounded-full border border-gold/20 text-parchment/80 transition hover:border-gold/50 hover:text-parchment"
+        }
       >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-          <path
-            d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"
-            stroke="currentColor"
-            strokeWidth="1.6"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <path
-            d="M13.7 21a2 2 0 0 1-3.4 0"
-            stroke="currentColor"
-            strokeWidth="1.6"
-            strokeLinecap="round"
-          />
-        </svg>
+        <span
+          className={
+            isMenuItem
+              ? "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-gold/20 text-parchment/80"
+              : "contents"
+          }
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+            <path
+              d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M13.7 21a2 2 0 0 1-3.4 0"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+            />
+          </svg>
+        </span>
+        {isMenuItem && <span className="flex-1">Notifications</span>}
         {unread > 0 && (
-          <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-ember px-1 text-[10px] font-bold text-ink">
+          <span
+            className={
+              isMenuItem
+                ? "flex h-5 min-w-5 items-center justify-center rounded-full bg-ember px-1.5 text-[10px] font-bold text-ink"
+                : "absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-ember px-1 text-[10px] font-bold text-ink"
+            }
+          >
             {unread > 9 ? "9+" : unread}
           </span>
         )}
       </button>
 
       {open && (
-        <div className="dd-fade-up absolute right-0 z-40 mt-2 w-80 overflow-hidden rounded-2xl border border-gold/20 bg-ink/95 shadow-2xl backdrop-blur">
+        <div
+          className={`dd-fade-up absolute z-40 mt-2 overflow-hidden rounded-2xl border border-gold/20 bg-ink/95 shadow-2xl backdrop-blur ${
+            isMenuItem
+              ? "left-0 right-0 w-auto max-h-[min(24rem,60vh)] sm:left-auto sm:right-0 sm:w-80"
+              : "right-0 w-80"
+          }`}
+        >
           <div className="flex items-center justify-between border-b border-white/10 px-4 py-2.5">
             <span className="font-display text-sm text-gold">Notifications</span>
             {unread > 0 && (
