@@ -370,7 +370,7 @@ function StashTheHearthTile() {
       </span>
       <span className="mt-3 font-display text-base text-parchment">The Hearth</span>
       <span className="mt-1 text-xs leading-snug text-parchment/50">
-        Daily &amp; weekly events
+        Events &amp; challenges
       </span>
       <span className="mt-0.5 text-[10px] text-ember-bright/80">
         Riddles refresh daily
