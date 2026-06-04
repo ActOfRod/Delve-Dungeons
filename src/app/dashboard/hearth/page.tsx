@@ -52,9 +52,9 @@ export default async function HearthPage() {
         <header className="mt-4 mb-8">
           <h1 className="font-display text-3xl text-parchment">The Hearth</h1>
           <p className="mt-2 max-w-xl text-sm text-parchment/60">
-            Warm up between adventures — solve today&apos;s rumor and puzzle for
-            gold at the counter. Riddle streaks earn a little more each day you
-            keep the flame alive.
+            Warm up between adventures — daily riddles and puzzles pay gold at
+            the counter; weekly and daily challenges are on the board soon.
+            Riddle streaks earn a little more each day you keep the flame alive.
           </p>
         </header>
         <div className="dd-panel dd-stash-tile-hearth rounded-2xl p-6 sm:p-8">
