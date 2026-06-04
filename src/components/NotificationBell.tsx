@@ -162,7 +162,7 @@ export function NotificationBell({
           className={
             isMenuItem
               ? "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-gold/20 text-parchment/80"
-              : "contents"
+              : "flex items-center justify-center"
           }
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
