@@ -9,11 +9,13 @@ export function CheckStage({
   pendingCheck,
   amITarget,
   modifier,
+  dmThinking = false,
   onResolve,
 }: {
   pendingCheck: PendingCheck | null;
   amITarget: boolean;
   modifier: number;
+  dmThinking?: boolean;
   onResolve: (rolls: number[], total: number, modifier: number) => Promise<void>;
 }) {
   const [rolling, setRolling] = useState(false);
@@ -36,7 +38,7 @@ export function CheckStage({
   if (!pendingCheck) return null;
 
   async function roll() {
-    if (rolling || resolved) return;
+    if (rolling || resolved || dmThinking) return;
     setRolling(true);
 
     // Tumble animation: flash random faces for ~900ms then settle.
@@ -80,10 +82,10 @@ export function CheckStage({
                 <>
                   <button
                     onClick={() => void roll()}
-                    disabled={rolling}
+                    disabled={rolling || dmThinking}
                     className="rounded-xl bg-gradient-to-r from-ember to-ember-bright px-6 py-3 font-display font-medium text-ink shadow-lg shadow-ember/30 transition hover:scale-[1.03] disabled:opacity-60"
                   >
-                    {rolling ? "Rolling…" : "Roll d20"}
+                    {dmThinking ? "DM is setting the scene…" : rolling ? "Rolling…" : "Roll d20"}
                   </button>
                   <div className="mt-1.5 text-xs text-parchment/50">
                     modifier {formatModifier(modifier)}

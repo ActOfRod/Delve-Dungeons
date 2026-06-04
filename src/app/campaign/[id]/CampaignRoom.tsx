@@ -66,6 +66,7 @@ export function CampaignRoom({
   const supabase = useMemo(() => createClient(), []);
   const channelRef = useRef<RealtimeChannel | null>(null);
   const openingRequestedRef = useRef(false);
+  const dmInFlightRef = useRef(false);
 
   const [campaign, setCampaign] = useState(initialCampaign);
   const [members, setMembers] = useState<Member[]>(initialMembers);
@@ -280,6 +281,16 @@ export function CampaignRoom({
       opening?: boolean;
       checkResult?: boolean;
     }): Promise<boolean> => {
+      const isCheckResult = options?.checkResult === true;
+      const isOpening = options?.opening === true;
+      if (!isOpening && !isCheckResult && pendingCheck) {
+        return true;
+      }
+      if (dmInFlightRef.current && !isCheckResult && !isOpening) {
+        return Boolean(pendingCheck);
+      }
+
+      dmInFlightRef.current = true;
       setDmThinking(true);
       broadcastDmThinking(true);
       let checkRequested = false;
@@ -289,16 +300,20 @@ export function CampaignRoom({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             campaignId: id,
-            opening: options?.opening,
-            checkResult: options?.checkResult,
+            opening: isOpening,
+            checkResult: isCheckResult,
           }),
         });
         if (res.ok) {
           const data = (await res.json()) as {
             message?: { id: string };
             check?: unknown;
+            skipped?: boolean;
             audioWavBase64?: string;
           };
+          if (data.skipped) {
+            return Boolean(pendingCheck);
+          }
           checkRequested = Boolean(data.check);
           if (dmVoiceEnabled && !isHumanDm && data.message?.id && data.audioWavBase64) {
             playPreparedAudio(data.message.id, data.audioWavBase64);
@@ -306,11 +321,19 @@ export function CampaignRoom({
         }
         return checkRequested;
       } finally {
+        dmInFlightRef.current = false;
         broadcastDmThinking(false);
         setTimeout(() => setDmThinking(false), 500);
       }
     },
-    [id, broadcastDmThinking, dmVoiceEnabled, isHumanDm, playPreparedAudio],
+    [
+      id,
+      broadcastDmThinking,
+      dmVoiceEnabled,
+      isHumanDm,
+      playPreparedAudio,
+      pendingCheck,
+    ],
   );
 
   const applySpotlight = useCallback((nextCharacterId: string | null) => {
@@ -335,12 +358,17 @@ export function CampaignRoom({
     [members, myCharacter, activeCharacterId, id, applySpotlight],
   );
 
+  const hasDmNarration = useMemo(
+    () => messages.some((m) => m.sender_type === "dm"),
+    [messages],
+  );
+
   // AI DM tables open with a generated scene instead of waiting for input.
   useEffect(() => {
-    if (messages.length > 0 || isHumanDm || openingRequestedRef.current) return;
+    if (hasDmNarration || isHumanDm || openingRequestedRef.current) return;
     openingRequestedRef.current = true;
     void summonDM({ opening: true });
-  }, [messages.length, isHumanDm, summonDM]);
+  }, [hasDmNarration, isHumanDm, summonDM]);
 
   const handleSend = useCallback(
     async (text: string) => {
@@ -521,6 +549,7 @@ export function CampaignRoom({
             pendingCheck={pendingCheck}
             amITarget={amICheckTarget}
             modifier={checkModifier}
+            dmThinking={dmThinking}
             onResolve={handleResolveCheck}
           />
           <MessageFeed
