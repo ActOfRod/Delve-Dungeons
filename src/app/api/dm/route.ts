@@ -343,14 +343,21 @@ export async function POST(request: Request) {
     "sender_type" | "character_name" | "content"
   >[] | null) ?? []).reverse();
 
-  const { count: messageCount } = await supabase
+  const { count: dmMessageCount } = await supabase
     .from("messages")
     .select("*", { count: "exact", head: true })
-    .eq("campaign_id", campaignId);
+    .eq("campaign_id", campaignId)
+    .eq("sender_type", "dm");
 
-  const opening = openingRequested || ((messageCount ?? 0) === 0 && !checkResultRequested);
+  const opening =
+    openingRequested ||
+    ((dmMessageCount ?? 0) === 0 && !checkResultRequested);
 
-  if (opening && (messageCount ?? 0) > 0) {
+  if (campaign.pending_check && !checkResultRequested && !opening) {
+    return NextResponse.json({ skipped: true, check: null });
+  }
+
+  if (opening && (dmMessageCount ?? 0) > 0) {
     const { data: existingOpening } = await supabase
       .from("messages")
       .select("*")
@@ -412,6 +419,10 @@ export async function POST(request: Request) {
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle<DiceRoll>();
+
+    if (!roll?.skill || roll.dc == null || roll.success == null) {
+      return NextResponse.json({ skipped: true, check: null });
+    }
 
     if (roll?.skill && roll.dc != null && roll.success != null) {
       resolvedCheck = {

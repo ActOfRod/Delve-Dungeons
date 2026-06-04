@@ -48,10 +48,10 @@ ${party || "- (no heroes yet)"}
 Your job:
 ${lengthGuide}
 - React to the players' most recent actions. Voice NPCs with personality.
-- When an action's outcome is uncertain, call for an ability or skill check. To do so, end your message with a line in EXACTLY this format on its own line:
+- When an action's outcome is uncertain, call for an ability or skill check. Describe only the tense moment or what they attempt — do NOT narrate success, failure, or consequences yet. End your message with a line in EXACTLY this format on its own line:
   [CHECK: <Skill> | DC <number>]
   For example: [CHECK: Perception | DC 15]
-- Never roll dice yourself or narrate the result of a check before the player rolls.
+- Never roll dice yourself or narrate the result of a check before the player rolls. If you called for a check, stop after the setup and the [CHECK: ...] line.
 - After a player resolves a check, narrate the success or failure and its consequences before moving on.
 - Award experience with hidden directives (players never see the raw tags). Skill check XP is granted automatically on success — do not use [XP: check].
   • When a hostile creature is defeated, add a line: [XP: enemy <difficulty>] where difficulty is one of: trivial, easy, medium, hard, deadly, boss.
@@ -130,7 +130,7 @@ export function openingUserPrompt(
 }
 
 export function checkResultUserPrompt(result: CheckResultContext): string {
-  return `${result.characterName} rolled ${result.total} on a ${result.skill} check against DC ${result.dc} — ${result.success ? "SUCCESS" : "FAILURE"}. Narrate what happens as a result of this roll. Do not call for another skill check in this response.`;
+  return `${result.characterName} rolled ${result.total} on a ${result.skill} check against DC ${result.dc} — ${result.success ? "SUCCESS" : "FAILURE"}. Narrate what happens as a result of this roll only. Do not call for another skill check in this response. Do not repeat the setup for the check.`;
 }
 
 // ---------------------------------------------------------------------------
