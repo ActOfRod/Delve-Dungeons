@@ -64,7 +64,7 @@ export async function postSystemMessage(
 // Advances the spotlight to the next adventurer in initiative order.
 export async function advanceTurn(
   campaignId: string,
-): Promise<{ error?: string }> {
+): Promise<{ error?: string; nextCharacterId?: string | null }> {
   const ctx = await requireMember(campaignId);
   if ("error" in ctx) return { error: ctx.error };
 
@@ -87,11 +87,14 @@ export async function advanceTurn(
   const currentIndex = order.findIndex(
     (m) => m.character_id === campaign?.active_character_id,
   );
-  const next = order[(currentIndex + 1) % order.length];
+  const nextIndex =
+    currentIndex < 0 ? 0 : (currentIndex + 1) % order.length;
+  const next = order[nextIndex]!;
+  const nextCharacterId = next.character_id as string;
 
   const { error } = await ctx.supabase
     .from("campaigns")
-    .update({ active_character_id: next.character_id, pending_check: null })
+    .update({ active_character_id: nextCharacterId, pending_check: null })
     .eq("id", campaignId);
   if (error) return { error: error.message };
 
@@ -116,7 +119,7 @@ export async function advanceTurn(
   }
 
   revalidatePath(`/campaign/${campaignId}`);
-  return {};
+  return { nextCharacterId };
 }
 
 export async function setActiveCharacter(

@@ -10,7 +10,8 @@ export function MessageFeed({
   respondingNames,
   onSend,
   onTyping,
-  canSpeak,
+  canCompose,
+  composePlaceholder,
   awaitingOpening = false,
 }: {
   messages: Message[];
@@ -19,7 +20,8 @@ export function MessageFeed({
   respondingNames: string[];
   onSend: (text: string) => Promise<void>;
   onTyping: (isResponding: boolean) => void;
-  canSpeak: boolean;
+  canCompose: boolean;
+  composePlaceholder: string;
   awaitingOpening?: boolean;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -54,7 +56,7 @@ export function MessageFeed({
   }
 
   return (
-    <div className="dd-panel flex min-h-[60vh] flex-1 flex-col overflow-hidden rounded-2xl lg:min-h-0">
+    <div className="dd-panel flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl">
       <div
         ref={scrollRef}
         className="flex-1 space-y-4 overflow-y-auto p-5"
@@ -104,17 +106,13 @@ export function MessageFeed({
               }
             }}
             rows={2}
-            disabled={!canSpeak}
-            placeholder={
-              canSpeak
-                ? "Describe your action…  (Enter to send, Shift+Enter for a new line)"
-                : "Join with a hero to act in this campaign."
-            }
-            className="max-h-40 min-h-[48px] flex-1 resize-none rounded-xl border border-gold/20 bg-black/30 px-4 py-3 text-parchment placeholder:text-parchment/30 outline-none transition focus:border-arcane focus:ring-2 focus:ring-arcane/30 disabled:opacity-50"
+            disabled={!canCompose}
+            placeholder={composePlaceholder}
+            className="max-h-40 min-h-[48px] flex-1 resize-none rounded-xl border border-gold/20 bg-black/30 px-4 py-3 text-parchment placeholder:text-parchment/30 outline-none transition focus:border-arcane focus:ring-2 focus:ring-arcane/30 disabled:cursor-not-allowed disabled:opacity-50"
           />
           <button
             onClick={() => void submit()}
-            disabled={!canSpeak || sending || !draft.trim()}
+            disabled={!canCompose || sending || !draft.trim()}
             className="h-[48px] shrink-0 rounded-xl bg-gradient-to-r from-ember to-ember-bright px-5 font-medium text-ink shadow-lg shadow-ember/20 transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {sending ? "…" : "Act"}

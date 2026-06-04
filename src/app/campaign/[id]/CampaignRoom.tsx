@@ -275,33 +275,65 @@ export function CampaignRoom({
     });
 
   // ---- Actions -------------------------------------------------------------
-  const summonDM = useCallback(async (options?: { opening?: boolean; checkResult?: boolean }) => {
-    setDmThinking(true);
-    broadcastDmThinking(true);
-    try {
-      const res = await fetch("/api/dm", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          campaignId: id,
-          opening: options?.opening,
-          checkResult: options?.checkResult,
-        }),
-      });
-      if (res.ok && dmVoiceEnabled && !isHumanDm) {
-        const data = (await res.json()) as {
-          message?: { id: string };
-          audioWavBase64?: string;
-        };
-        if (data.message?.id && data.audioWavBase64) {
-          playPreparedAudio(data.message.id, data.audioWavBase64);
+  const summonDM = useCallback(
+    async (options?: {
+      opening?: boolean;
+      checkResult?: boolean;
+    }): Promise<boolean> => {
+      setDmThinking(true);
+      broadcastDmThinking(true);
+      let checkRequested = false;
+      try {
+        const res = await fetch("/api/dm", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            campaignId: id,
+            opening: options?.opening,
+            checkResult: options?.checkResult,
+          }),
+        });
+        if (res.ok) {
+          const data = (await res.json()) as {
+            message?: { id: string };
+            check?: unknown;
+            audioWavBase64?: string;
+          };
+          checkRequested = Boolean(data.check);
+          if (dmVoiceEnabled && !isHumanDm && data.message?.id && data.audioWavBase64) {
+            playPreparedAudio(data.message.id, data.audioWavBase64);
+          }
         }
+        return checkRequested;
+      } finally {
+        broadcastDmThinking(false);
+        setTimeout(() => setDmThinking(false), 500);
       }
-    } finally {
-      broadcastDmThinking(false);
-      setTimeout(() => setDmThinking(false), 500);
-    }
-  }, [id, broadcastDmThinking, dmVoiceEnabled, isHumanDm, playPreparedAudio]);
+    },
+    [id, broadcastDmThinking, dmVoiceEnabled, isHumanDm, playPreparedAudio],
+  );
+
+  const applySpotlight = useCallback((nextCharacterId: string | null) => {
+    setCampaign((prev) => ({
+      ...prev,
+      active_character_id: nextCharacterId,
+      pending_check: null,
+    }));
+  }, []);
+
+  const maybeAdvanceTurnAfterAction = useCallback(
+    async (checkRequested: boolean) => {
+      if (checkRequested || !myCharacter) return;
+      const playersWithHeroes = members.filter((m) => m.character_id);
+      if (playersWithHeroes.length < 2) return;
+      if (activeCharacterId !== myCharacter.id) return;
+      const { nextCharacterId, error } = await advanceTurn(id);
+      if (!error && nextCharacterId) {
+        applySpotlight(nextCharacterId);
+      }
+    },
+    [members, myCharacter, activeCharacterId, id, applySpotlight],
+  );
 
   // AI DM tables open with a generated scene instead of waiting for input.
   useEffect(() => {
@@ -319,16 +351,35 @@ export function CampaignRoom({
         myCharacter?.id ?? null,
         myCharacter?.name ?? null,
       );
-      void summonDM();
+      if (isHumanDm) {
+        if (!pendingCheck) {
+          await maybeAdvanceTurnAfterAction(false);
+        }
+        return;
+      }
+      const checkRequested = await summonDM();
+      await maybeAdvanceTurnAfterAction(checkRequested);
     },
-    [id, myCharacter?.id, myCharacter?.name, broadcastResponding, summonDM],
+    [
+      id,
+      myCharacter?.id,
+      myCharacter?.name,
+      broadcastResponding,
+      summonDM,
+      isHumanDm,
+      pendingCheck,
+      maybeAdvanceTurnAfterAction,
+    ],
   );
 
   const handleAdvanceTurn = useCallback(() => {
     startTransition(async () => {
-      await advanceTurn(id);
+      const { nextCharacterId, error } = await advanceTurn(id);
+      if (!error && nextCharacterId) {
+        applySpotlight(nextCharacterId);
+      }
     });
-  }, [id]);
+  }, [id, applySpotlight]);
 
   const handleClaimSpotlight = useCallback(() => {
     if (!myCharacter) return;
@@ -355,10 +406,20 @@ export function CampaignRoom({
         resolvesPendingCheck: true,
       });
       if (!isHumanDm) {
-        void summonDM({ checkResult: true });
+        const checkRequested = await summonDM({ checkResult: true });
+        await maybeAdvanceTurnAfterAction(checkRequested);
+      } else {
+        await maybeAdvanceTurnAfterAction(false);
       }
     },
-    [id, pendingCheck, myCharacter, isHumanDm, summonDM],
+    [
+      id,
+      pendingCheck,
+      myCharacter,
+      isHumanDm,
+      summonDM,
+      maybeAdvanceTurnAfterAction,
+    ],
   );
 
   const handleGenericRoll = useCallback(
@@ -394,8 +455,28 @@ export function CampaignRoom({
     [id],
   );
 
+  const composePlaceholder = useMemo(() => {
+    if (!myCharacter) {
+      return "Join with a hero to act in this campaign.";
+    }
+    if (pendingCheck) {
+      return "Resolve the skill check before acting again…";
+    }
+    if (!isMyTurn) {
+      const active = members.find(
+        (m) => m.character_id === activeCharacterId,
+      )?.character?.name;
+      return active
+        ? `Wait for your turn — ${active} is in the spotlight.`
+        : "Wait for your turn in the initiative order.";
+    }
+    return "Describe your action…  (Enter to send, Shift+Enter for a new line)";
+  }, [myCharacter, pendingCheck, isMyTurn, members, activeCharacterId]);
+
+  const canCompose = !!myCharacter && isMyTurn && !pendingCheck;
+
   return (
-    <div className="flex min-h-dvh flex-col">
+    <div className="flex h-dvh flex-col overflow-hidden">
       <header className="sticky top-0 z-20 border-b border-white/5 bg-ink/80 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
           <div className="flex items-center gap-4">
@@ -432,9 +513,9 @@ export function CampaignRoom({
         </div>
       </header>
 
-      <div className="mx-auto grid w-full max-w-7xl flex-1 grid-cols-1 gap-4 px-4 py-4 sm:px-6 lg:grid-cols-[1fr_320px]">
+      <div className="mx-auto grid h-0 min-h-0 w-full max-w-7xl flex-1 grid-cols-1 gap-4 overflow-hidden px-4 py-4 sm:px-6 lg:grid-cols-[1fr_320px]">
         {/* Main column: narrative + check stage + composer ------------------ */}
-        <div className="flex min-h-0 flex-col gap-4">
+        <div className="flex min-h-0 flex-col gap-4 overflow-hidden">
           <CheckStage
             key={pendingCheck?.requested_at ?? "none"}
             pendingCheck={pendingCheck}
@@ -449,13 +530,14 @@ export function CampaignRoom({
             respondingNames={respondingNames}
             onSend={handleSend}
             onTyping={broadcastResponding}
-            canSpeak={!!myCharacter}
+            canCompose={canCompose}
+            composePlaceholder={composePlaceholder}
             awaitingOpening={!isHumanDm && messages.length === 0}
           />
         </div>
 
         {/* Sidebar: party, turn order, dice ------------------------------- */}
-        <aside className="flex flex-col gap-4">
+        <aside className="flex min-h-0 flex-col gap-4 overflow-y-auto lg:overflow-y-auto">
           <PartyPanel
             members={members}
             online={online}
