@@ -166,6 +166,21 @@ body {
   );
 }
 
+.dd-stash-tile-hearth:hover {
+  transform: translateY(-3px) scale(1.02);
+  border-color: rgba(232, 120, 70, 0.55);
+}
+
+.dd-stash-tile-hearth {
+  border-color: rgba(232, 120, 70, 0.38);
+  background: linear-gradient(
+    145deg,
+    rgba(232, 100, 50, 0.14),
+    rgba(180, 80, 40, 0.08) 40%,
+    rgba(13, 11, 22, 0.92)
+  );
+}
+
 .dd-stash-tile-locked:hover {
   border-color: rgba(255, 255, 255, 0.18);
 }
