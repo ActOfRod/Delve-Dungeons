@@ -313,17 +313,26 @@ export function CampaignRoom({
     [id, broadcastDmThinking, dmVoiceEnabled, isHumanDm, playPreparedAudio],
   );
 
+  const applySpotlight = useCallback((nextCharacterId: string | null) => {
+    setCampaign((prev) => ({
+      ...prev,
+      active_character_id: nextCharacterId,
+      pending_check: null,
+    }));
+  }, []);
+
   const maybeAdvanceTurnAfterAction = useCallback(
     async (checkRequested: boolean) => {
       if (checkRequested || !myCharacter) return;
       const playersWithHeroes = members.filter((m) => m.character_id);
       if (playersWithHeroes.length < 2) return;
       if (activeCharacterId !== myCharacter.id) return;
-      startTransition(async () => {
-        await advanceTurn(id);
-      });
+      const { nextCharacterId, error } = await advanceTurn(id);
+      if (!error && nextCharacterId) {
+        applySpotlight(nextCharacterId);
+      }
     },
-    [members, myCharacter, activeCharacterId, id],
+    [members, myCharacter, activeCharacterId, id, applySpotlight],
   );
 
   // AI DM tables open with a generated scene instead of waiting for input.
@@ -365,9 +374,12 @@ export function CampaignRoom({
 
   const handleAdvanceTurn = useCallback(() => {
     startTransition(async () => {
-      await advanceTurn(id);
+      const { nextCharacterId, error } = await advanceTurn(id);
+      if (!error && nextCharacterId) {
+        applySpotlight(nextCharacterId);
+      }
     });
-  }, [id]);
+  }, [id, applySpotlight]);
 
   const handleClaimSpotlight = useCallback(() => {
     if (!myCharacter) return;

@@ -207,6 +207,20 @@ export async function createCampaign(
 
   if (memberError) return { error: memberError.message };
 
+  if (characterId) {
+    const { data: hero } = await supabase
+      .from("characters")
+      .select("name")
+      .eq("id", characterId)
+      .maybeSingle();
+    const heroName = (hero as { name: string } | null)?.name ?? "the party";
+    await supabase.from("messages").insert({
+      campaign_id: campaign.id,
+      sender_type: "system",
+      content: `It is now ${heroName}'s turn.`,
+    });
+  }
+
   const inviteIds = formData
     .getAll("invite_friends")
     .map(String)
@@ -308,6 +322,43 @@ export async function joinCampaign(
       }
     | undefined;
   if (!row) return { error: "No campaign found for that code." };
+
+  const { data: campaignRow } = await supabase
+    .from("campaigns")
+    .select("active_character_id, owner_id")
+    .eq("id", row.campaign_id)
+    .maybeSingle();
+
+  if (
+    campaignRow &&
+    !(campaignRow as { active_character_id: string | null }).active_character_id
+  ) {
+    const { data: ownerMember } = await supabase
+      .from("campaign_members")
+      .select("character_id, character:characters(name)")
+      .eq("campaign_id", row.campaign_id)
+      .eq("user_id", (campaignRow as { owner_id: string }).owner_id)
+      .not("character_id", "is", null)
+      .maybeSingle();
+
+    const ownerCharacterId = (
+      ownerMember as { character_id: string | null } | null
+    )?.character_id;
+    if (ownerCharacterId) {
+      const ownerName =
+        (ownerMember as { character: { name: string } | null } | null)?.character
+          ?.name ?? "the host";
+      await supabase
+        .from("campaigns")
+        .update({ active_character_id: ownerCharacterId })
+        .eq("id", row.campaign_id);
+      await supabase.from("messages").insert({
+        campaign_id: row.campaign_id,
+        sender_type: "system",
+        content: `It is now ${ownerName}'s turn.`,
+      });
+    }
+  }
 
   if (row.is_new && row.owner_id !== user.id) {
     const { data: character } = await supabase
