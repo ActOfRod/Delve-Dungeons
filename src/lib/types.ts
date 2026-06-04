@@ -78,6 +78,7 @@ export interface Character {
   race: string;
   klass: string;
   level: number;
+  xp: number;
   abilities: AbilityScores;
   max_hp: number;
   current_hp: number;

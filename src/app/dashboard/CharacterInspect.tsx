@@ -7,6 +7,7 @@ import { ItemValueBadge } from "@/components/ItemValueBadge";
 import { filterPhysicalInventoryItems } from "@/lib/inventory";
 import type { Character, InventoryItem } from "@/lib/types";
 import { ABILITIES, abilityModifier, formatModifier, getBackground, proficiencyBonus } from "@/lib/dnd";
+import { xpProgress } from "@/lib/xp";
 
 interface CampaignRef {
   id: string;
@@ -57,6 +58,8 @@ export function CharacterInspect({
     0,
     Math.min(100, Math.round((character.current_hp / character.max_hp) * 100)),
   );
+  const xp = character.xp ?? 0;
+  const xpBar = xpProgress(character.level, xp);
 
   return (
     <Modal open={!!character} onClose={onClose} title={character.name}>
@@ -72,6 +75,27 @@ export function CharacterInspect({
           <span className="rounded-lg border border-gold/25 px-2.5 py-1 text-xs text-gold">
             Prof {formatModifier(proficiencyBonus(character.level))}
           </span>
+          </div>
+        </div>
+
+        {/* XP bar */}
+        <div>
+          <div className="mb-1 flex items-center justify-between text-xs">
+            <span className="uppercase tracking-wide text-parchment/50">
+              Experience
+            </span>
+            <span className="text-gold/90">
+              {xp.toLocaleString()} XP
+              {xpBar.xpForNextLevel != null
+                ? ` · ${xpBar.xpIntoLevel} / ${xpBar.xpForNextLevel} to level ${character.level + 1}`
+                : " · max level"}
+            </span>
+          </div>
+          <div className="h-2 overflow-hidden rounded-full bg-black/40">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-gold/60 to-gold"
+              style={{ width: `${xpBar.progressPercent}%` }}
+            />
           </div>
         </div>
 
