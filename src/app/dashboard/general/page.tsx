@@ -56,7 +56,8 @@ export default async function GeneralShopPage() {
             The local shop for adventurers of levels {GENERAL_SHOP_MIN_LEVEL}–
             {GENERAL_SHOP_MAX_LEVEL}. Today&apos;s counter holds four wares —
             a rolled healing potion line, plus three pieces matched to your class.
-            Stock refreshes each day.
+            Stock refreshes each day. Pay from your hero&apos;s gold in their
+            stash — one purchase per slot per day.
           </p>
         </header>
         <div className="dd-panel dd-stash-tile-general rounded-2xl p-6 sm:p-8">

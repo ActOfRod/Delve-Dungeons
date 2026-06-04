@@ -19,8 +19,17 @@ export {
   generalShopDayKey,
   generalShopSeed,
   generateGeneralShopStock,
+  getGeneralShopListing,
   type GeneralShopListing,
 } from "./general-shop";
+
+export {
+  isSlotPurchased,
+  markSlotPurchased,
+  parseGeneralShopPurchases,
+  purchasedSlotsForDay,
+  type GeneralShopPurchases,
+} from "./purchases";
 export {
   rollHealingPotionStock,
   SUPREME_HEALING_SPAWN_PERCENT,
