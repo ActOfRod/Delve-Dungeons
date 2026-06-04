@@ -5,6 +5,9 @@ import { SUPABASE_ANON_KEY, SUPABASE_URL, isSupabaseConfigured } from "./config"
 const PUBLIC_PATHS = ["/", "/login", "/auth"];
 
 function isPublic(pathname: string): boolean {
+  if (pathname === "/manifest.webmanifest") return true;
+  if (pathname === "/sw.js") return true;
+  if (pathname.startsWith("/icons/")) return true;
   return PUBLIC_PATHS.some(
     (p) => pathname === p || pathname.startsWith(`${p}/`),
   );
