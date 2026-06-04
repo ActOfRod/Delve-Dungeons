@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import type { AppNotification } from "@/lib/types";
+import { useNotificationFeed } from "@/lib/use-notification-feed";
 import {
   deleteNotification,
   markAllNotificationsRead,
@@ -28,76 +28,23 @@ export function NotificationBell({
   userId: string;
   variant?: "icon" | "menuItem";
 }) {
-  const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
   const ref = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
-  const [items, setItems] = useState<AppNotification[]>([]);
+  const { items, setItems } = useNotificationFeed(userId);
   const [, startTransition] = useTransition();
 
   const unread = items.filter((n) => !n.read).length;
-
-  const load = useCallback(async () => {
-    const { data } = await supabase
-      .from("notifications")
-      .select("*")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false })
-      .limit(40);
-    if (data) setItems(data as AppNotification[]);
-  }, [supabase, userId]);
+  const isMenuItem = variant === "menuItem";
 
   useEffect(() => {
-    // Initial fetch on mount; setState happens after the async load resolves.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void load();
-    const channel = supabase
-      .channel(`notifications:${userId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "notifications",
-          filter: `user_id=eq.${userId}`,
-        },
-        (payload) => {
-          if (payload.eventType === "INSERT") {
-            const n = payload.new as AppNotification;
-            setItems((prev) =>
-              prev.some((x) => x.id === n.id) ? prev : [n, ...prev],
-            );
-          } else if (payload.eventType === "UPDATE") {
-            const n = payload.new as AppNotification;
-            setItems((prev) => prev.map((x) => (x.id === n.id ? n : x)));
-          } else if (payload.eventType === "DELETE") {
-            const old = payload.old as { id: string };
-            setItems((prev) => prev.filter((x) => x.id !== old.id));
-          }
-        },
-      )
-      .subscribe();
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-  }, [supabase, userId, load]);
-
-  // Safety net: poll periodically so notifications still arrive even if the
-  // realtime socket misses an event or reconnects.
-  useEffect(() => {
-    const interval = setInterval(() => {
-      void load();
-    }, 15000);
-    return () => clearInterval(interval);
-  }, [load]);
-
-  useEffect(() => {
-    function onClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node))
+    function onDocumentClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
         setOpen(false);
+      }
     }
-    if (open) document.addEventListener("mousedown", onClick);
-    return () => document.removeEventListener("mousedown", onClick);
+    if (open) document.addEventListener("mousedown", onDocumentClick);
+    return () => document.removeEventListener("mousedown", onDocumentClick);
   }, [open]);
 
   function markRead(id: string) {
@@ -143,8 +90,6 @@ export function NotificationBell({
       router.push(`/campaign/${String(n.data.campaign_id)}`);
     }
   }
-
-  const isMenuItem = variant === "menuItem";
 
   return (
     <div ref={ref} className={`relative ${isMenuItem ? "w-full" : ""}`}>
@@ -207,6 +152,7 @@ export function NotificationBell({
             <span className="font-display text-sm text-gold">Notifications</span>
             {unread > 0 && (
               <button
+                type="button"
                 onClick={markAll}
                 className="text-xs text-arcane-bright hover:underline"
               >
@@ -233,6 +179,7 @@ export function NotificationBell({
                   </div>
                   <div className="min-w-0 flex-1">
                     <button
+                      type="button"
                       onClick={() => activate(n)}
                       className="block w-full text-left"
                     >
@@ -250,12 +197,14 @@ export function NotificationBell({
                     {n.type === "friend_request" && !n.read && (
                       <div className="mt-2 flex gap-2">
                         <button
+                          type="button"
                           onClick={() => respond(n, true)}
                           className="rounded-lg bg-gradient-to-r from-moss to-green-600 px-3 py-1 text-xs font-medium text-ink transition hover:scale-[1.03]"
                         >
                           Accept
                         </button>
                         <button
+                          type="button"
                           onClick={() => respond(n, false)}
                           className="rounded-lg border border-white/15 px-3 py-1 text-xs text-parchment/70 transition hover:border-blood/40 hover:text-red-200"
                         >
@@ -265,6 +214,7 @@ export function NotificationBell({
                     )}
                     {n.type === "campaign_invite" && Boolean(n.data?.invite_code) && (
                       <button
+                        type="button"
                         onClick={() => activate(n)}
                         className="mt-2 rounded-lg bg-gradient-to-r from-arcane to-arcane-bright px-3 py-1 text-xs font-medium text-ink transition hover:scale-[1.03]"
                       >
@@ -274,11 +224,12 @@ export function NotificationBell({
                   </div>
 
                   <button
+                    type="button"
                     onClick={() => remove(n.id)}
                     aria-label="Dismiss"
                     className="self-start text-parchment/30 opacity-0 transition hover:text-parchment group-hover:opacity-100"
                   >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
                       <path
                         d="M6 6l12 12M18 6L6 18"
                         stroke="currentColor"
