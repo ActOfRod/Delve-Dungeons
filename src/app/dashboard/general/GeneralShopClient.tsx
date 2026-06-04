@@ -124,8 +124,8 @@ export function GeneralShopClient({
             (70% standard / 18% greater / 9% superior / 10% supreme; qty 1–5)
           </li>
           <li>
-            <strong className="text-parchment/55">Slot 2</strong> — Utility: 60%
-            common / 35% uncommon / 5% rare (50–250 GP)
+            <strong className="text-parchment/55">Slot 2</strong> — PHB mundane
+            gear matched to your class (listed PHB price)
           </li>
           <li>
             <strong className="text-parchment/55">Slot 3</strong> — Defense: 40%
@@ -137,7 +137,8 @@ export function GeneralShopClient({
           </li>
         </ul>
         <p className="mt-2">
-          The same drop tables will drive magic item finds in campaigns later.
+          Campaign DMs can roll DMG individual or hoard treasure into a hero&apos;s
+          stash from the campaign sidebar.
         </p>
       </details>
     </div>

@@ -1,0 +1,167 @@
+import type {
+  HoardTreasureBand,
+  HoardTreasureEntry,
+  IndividualTreasureEntry,
+  TreasureCrBand,
+} from "./types";
+
+export const INDIVIDUAL_TREASURE: Record<TreasureCrBand, IndividualTreasureEntry[]> = {
+  "0-4": [
+      { min: 1, max: 30, cp: "5d6 (17)", sp: null, ep: null, gp: null, pp: null },
+      { min: 31, max: 60, cp: null, sp: "4d6 (14)", ep: null, gp: null, pp: null },
+      { min: 61, max: 70, cp: null, sp: null, ep: "3d6 (10)", gp: null, pp: null },
+      { min: 71, max: 95, cp: null, sp: null, ep: null, gp: "3d6 (10)", pp: null },
+  ],
+  "5-10": [
+      { min: 1, max: 30, cp: "4d6 x 100 (1,400)", sp: null, ep: "1d6 x 10 (35)", gp: null, pp: null },
+      { min: 31, max: 60, cp: null, sp: "6d6 x 10 (210)", ep: null, gp: "2d6 x 10 (70)", pp: null },
+      { min: 61, max: 70, cp: null, sp: null, ep: "1d6 x 100 (350)", gp: "2d6 x 10 (70)", pp: null },
+      { min: 71, max: 95, cp: null, sp: null, ep: null, gp: "4d6 x 10 (140)", pp: null },
+  ],
+  "11-16": [
+      { min: 1, max: 20, cp: null, sp: "4d6 x 100 (1,400)", ep: null, gp: "1d6 x 100 (35)", pp: null },
+      { min: 21, max: 35, cp: null, sp: null, ep: "1d6 x 100 (350)", gp: "1d6 x 100 (350)", pp: null },
+      { min: 36, max: 75, cp: null, sp: null, ep: null, gp: "2d6 x 100 (700)", pp: "1d6 x 10 (35)" },
+  ],
+  "17+": [
+      { min: 1, max: 15, cp: null, sp: null, ep: "2d6 x 1000 (7000)", gp: "8d6 x 100 (2800)", pp: null },
+      { min: 16, max: 55, cp: null, sp: null, ep: null, gp: "1d6 x 1000 (3500)", pp: "1d6 x 100 (350)" },
+      { min: 56, max: 100, cp: null, sp: null, ep: null, gp: "1d6 x 1000 (3500)", pp: "2d6 x 100 (700)" },
+  ],
+};
+
+export const HOARD_TREASURE: Record<TreasureCrBand, HoardTreasureBand> = {
+  "0-4": {
+    coins: {"cp":"6d6 X 100 (2100)","sp":"3d6 X 100 (1050)","ep":"–","gp":"2d6 X 10 (70)","pp":"–"},
+    entries: [
+      { min: 1, max: 4, gemsOrArt: null, magicItems: null },
+      { min: 5, max: 10, gemsOrArt: "2d4 (5) 25 gp art objects", magicItems: null },
+      { min: 11, max: 16, gemsOrArt: "3d6 (10) 50 gp gem", magicItems: null },
+      { min: 17, max: 22, gemsOrArt: "3d6 (10) 100 gp gems", magicItems: null },
+      { min: 23, max: 28, gemsOrArt: "2d4 (5) 25 gp art objects", magicItems: null },
+      { min: 29, max: 32, gemsOrArt: "2d4 (5) 25 gp art objects", magicItems: "Roll 1d6 times on Magic Item Table A." },
+      { min: 33, max: 36, gemsOrArt: "3d6 ( 10) 50 gp gems", magicItems: "Roll 1d6 times on Magic Item Table A." },
+      { min: 37, max: 40, gemsOrArt: "3d6 (10) 100 gp gems", magicItems: "Roll 1d6 times on Magic Item Table A." },
+      { min: 41, max: 44, gemsOrArt: "2d4 (5) 250 gp art objects", magicItems: "Roll 1d6 times on Magic Item Table A." },
+      { min: 45, max: 49, gemsOrArt: "2d4 (5) 25 gp art objects", magicItems: "Roll 1d4 times on Magic Item Table B." },
+      { min: 50, max: 54, gemsOrArt: "3d6 (10) 50 gp g ems", magicItems: "Roll 1d4 times on Magic Item Table B." },
+      { min: 55, max: 59, gemsOrArt: "3d6 (10) 100 gp gems", magicItems: "Roll 1d4 times on Magic Item Table B." },
+      { min: 60, max: 63, gemsOrArt: "2d4 (5) 250 gp art objects", magicItems: "Roll 1d4 times on Magic Item Table B." },
+      { min: 64, max: 66, gemsOrArt: "2d4 (5) 25 gp art objects", magicItems: "Roll 1d4 times on Magic Item Table C." },
+      { min: 67, max: 69, gemsOrArt: "3d6 (l 0) 50 gp gems", magicItems: "Roll 1d4 times on Magic Item Table C." },
+      { min: 70, max: 72, gemsOrArt: "3d6 (10) 100 gp gems", magicItems: "Roll 1d4 times on Magic Item Table C." },
+      { min: 73, max: 74, gemsOrArt: "2d4 (5) 250 gp art objects", magicItems: "Roll 1d4 times on Magic Item Table C." },
+      { min: 75, max: 76, gemsOrArt: "2d4 (5) 25 gp art objects", magicItems: "Roll once on Magic Item Table D." },
+      { min: 77, max: 78, gemsOrArt: "3d6 (10) 50 gp gems", magicItems: "Roll once on Magic Item Table D." },
+      { min: 79, max: 79, gemsOrArt: "3d6 (10) 100 gp gems", magicItems: "Roll once on Magic Item Table D." },
+      { min: 80, max: 80, gemsOrArt: "2d4 (5) 250 gp art objects", magicItems: "Roll once on Magic Item Table D." },
+      { min: 81, max: 84, gemsOrArt: "2d4 (5) 25 gp art objects", magicItems: "Roll 1d4 times on Magic Item Table F." },
+      { min: 85, max: 88, gemsOrArt: "3d6 (10) 50 gp gems", magicItems: "Roll 1d4 times on Magic Item Table F." },
+      { min: 89, max: 91, gemsOrArt: "3d6 (10) 100 gp gems", magicItems: "Roll 1d4 times on Magic Item Table F." },
+      { min: 92, max: 94, gemsOrArt: "2d4 (5) 250 gp art objects", magicItems: "Roll 1d4 times on Magic Item Table F." },
+      { min: 95, max: 96, gemsOrArt: "3d6 (10) 100 gp gems", magicItems: "Roll 1d4 times on Magic Item Table G." },
+      { min: 97, max: 98, gemsOrArt: "2d4 (5) 250 gp art objects", magicItems: "Roll 1d6 times on Magic Item Table G." },
+      { min: 99, max: 99, gemsOrArt: "3d6 (10) 100 gp gems", magicItems: "Roll once on Magic Item Table H." },
+    ],
+  },
+  "5-10": {
+    coins: {"cp":"2d6 X 100 (700)","sp":"2d6 X 1000 (7000)","ep":"–","gp":"6d6 X 100 (2100)","pp":"3d6 x 10 (105)"},
+    entries: [
+      { min: 1, max: 3, gemsOrArt: null, magicItems: null },
+      { min: 4, max: 6, gemsOrArt: "2d4 (5) 250 gp art objects", magicItems: null },
+      { min: 7, max: 10, gemsOrArt: "2d4 (5) 750 gp art objects", magicItems: null },
+      { min: 11, max: 12, gemsOrArt: "3d6 (10) 500 gp gems", magicItems: null },
+      { min: 13, max: 15, gemsOrArt: "3d6 (1 0) 1,000 gp gems", magicItems: null },
+      { min: 16, max: 19, gemsOrArt: "2d4 (5) 250 gp art objects", magicItems: "Roll 1d4 times on Magic Item Table A and 1d6 times on Magic Item Table B." },
+      { min: 20, max: 23, gemsOrArt: "2d4 (5) 750 gp art objects", magicItems: "Roll 1d4 times on Magic Item Table A and 1d6 times on Magic Item Table B." },
+      { min: 24, max: 26, gemsOrArt: "3d6 (10) 500 gp gems", magicItems: "Roll 1d4 times on Magic Item Table A and 1d6 times on Magic Item Table B." },
+      { min: 27, max: 29, gemsOrArt: "3d6 (1 0) 1,000 gp gems", magicItems: "Roll 1d4 times on Magic Item Table A and 1d6 times on Magic Item Table B." },
+      { min: 30, max: 35, gemsOrArt: "2d4 (5) 250 gp art objects", magicItems: "Roll 1d6 times on Magic Item Table C." },
+      { min: 36, max: 40, gemsOrArt: "2d4 (5) 750 gp art objects", magicItems: "Roll 1d6 times on Magic Item Table C." },
+      { min: 41, max: 45, gemsOrArt: "3d6 (10) 500 gp gems", magicItems: "Roll 1d6 times on Magic Item Table C." },
+      { min: 46, max: 50, gemsOrArt: "3d6 (10) 1,000 gp gems", magicItems: "Roll 1d6 times on Magic Item Table C." },
+      { min: 51, max: 54, gemsOrArt: "2d4 (5) 250 gp art objects", magicItems: "Roll 1d4 times on Magic Item Table D" },
+      { min: 55, max: 58, gemsOrArt: "2d4 (5) 750 gp art objects", magicItems: "Roll 1d4 times on Magic Item Table D." },
+      { min: 59, max: 62, gemsOrArt: "3d6 (10) 500 gp gems", magicItems: "Roll 1d4 times on Magic Item Table D." },
+      { min: 63, max: 66, gemsOrArt: "3d6 (10) 1,000 gp gems", magicItems: "Roll 1d4 times on Magic Item Table D." },
+      { min: 67, max: 68, gemsOrArt: "2d4 (5) 250 gp art objects", magicItems: "Roll once on Magic Item Table E." },
+      { min: 69, max: 70, gemsOrArt: "2d4 (5) 750 gp art objects", magicItems: "Roll once on Magic Item Table E." },
+      { min: 71, max: 72, gemsOrArt: "3d6 (10) 500 gp gems", magicItems: "Roll once on Magic Item Table E." },
+      { min: 73, max: 74, gemsOrArt: "3d6 (10) 1,000 gp gems", magicItems: "Roll once on Magic Item Table E." },
+      { min: 75, max: 76, gemsOrArt: "2d4 (5) 250 gp art objects", magicItems: "Roll once on Magic Item Table F and 1d4 times on Magic Item Table G." },
+      { min: 77, max: 78, gemsOrArt: "2d4 (5) 750 gp art objects", magicItems: "Roll once on Magic Item Table F and 1d4 times on Magic Item Table G." },
+      { min: 79, max: 80, gemsOrArt: "3d6 (10) 500 gp gems", magicItems: "Roll once on Magic Item Table F and 1d4 times on Magic Item Table G." },
+      { min: 81, max: 82, gemsOrArt: "3d6 (1 0) 1,000 gp gems", magicItems: "Roll once on Magic Item Table F and 1d4 times on Magic Item Table G." },
+      { min: 83, max: 85, gemsOrArt: "2d4 (5) 250 gp art objects", magicItems: "Roll1d4 times on Magic Item Table H." },
+      { min: 86, max: 88, gemsOrArt: "2d4 (5) 750 gp art objects", magicItems: "Roll 1d4 times on Magic Item Table H." },
+      { min: 89, max: 90, gemsOrArt: "3d6 (10) 500 gp gems", magicItems: "Roll 1d4 times on Magic Item Table H." },
+      { min: 91, max: 92, gemsOrArt: "3d6 (10) 1,000 gp gems", magicItems: "Roll 1d4 times on Magic Item Table H." },
+      { min: 93, max: 94, gemsOrArt: "2d4 (5) 250 gp art objects", magicItems: "Roll once on Magic Item Table I." },
+      { min: 95, max: 96, gemsOrArt: "3d6 (10) 500 gp gems", magicItems: "Roll once on Magic Item Table I." },
+      { min: 97, max: 98, gemsOrArt: "3d6 (10) 1,000 gp gems", magicItems: "Roll once on Magic Item Table I." },
+      { min: 99, max: 100, gemsOrArt: "3d6 (10) 1,000 gp gems", magicItems: "Roll once on Magic Item Table I." },
+    ],
+  },
+  "11-16": {
+    coins: {"cp":"–","sp":"–","ep":"–","gp":"4d6 X 1000 (1400)","pp":"5d6 x 100 (1750)"},
+    entries: [
+      { min: 1, max: 2, gemsOrArt: null, magicItems: null },
+      { min: 3, max: 5, gemsOrArt: "3d6 (1 0) 1, 000 gp gems", magicItems: "Roll 1d8 times on Magic Item Table C." },
+      { min: 6, max: 8, gemsOrArt: "1d10 (5) 2,500 gp art objects", magicItems: "Roll 1d8 times on Magic Item Table C." },
+      { min: 9, max: 11, gemsOrArt: "1d4 (2) 7,500 gp art objects", magicItems: "Roll 1d8 times on Magic Item Table C." },
+      { min: 12, max: 14, gemsOrArt: "1d8 (4) 5,000 gp gems", magicItems: "Roll 1d8 times on Magic Item Table C." },
+      { min: 15, max: 22, gemsOrArt: "3d6 (10) 1,000 gp gems", magicItems: "Roll 1d6 times on Magic Item Table D." },
+      { min: 23, max: 30, gemsOrArt: "1dl0 (5) 2,500 gp art objects", magicItems: "Roll 1d6 times on Magic Item Table D." },
+      { min: 31, max: 38, gemsOrArt: "1d4 (2) 7, 500 gp art objects", magicItems: "Roll 1d6 times on Magic Item Table D." },
+      { min: 39, max: 46, gemsOrArt: "1d8 (4) 5,000 gp gems", magicItems: "Roll 1d6 times on Magic Item Table D" },
+      { min: 47, max: 52, gemsOrArt: "3d6 (10) 1,000 gp gems", magicItems: "Roll 1d6 times on Magic Item Table E." },
+      { min: 53, max: 58, gemsOrArt: "1d10 (5) 2,500 gp art objects", magicItems: "Roll1d6 times on Magic Item Table E." },
+      { min: 59, max: 63, gemsOrArt: "1d4 (2) 7,500 gp art objects", magicItems: "Roll 1d6 times on Magic Item Table E." },
+      { min: 64, max: 68, gemsOrArt: "1d8 (4) 5, 000 gp gems", magicItems: "Roll 1d6 times on Magic Item Table E." },
+      { min: 69, max: 69, gemsOrArt: "3d6 (1 0) 1,000 gp gems", magicItems: "Roll 1d4 times on Magic Item Table G." },
+      { min: 70, max: 70, gemsOrArt: "1d10 (5) 2,500 gp art objects", magicItems: "Roll 1d4 times on Magic Item Table G." },
+      { min: 71, max: 71, gemsOrArt: "1d4 (2) 7,500 gp art objects", magicItems: "Roll1d4 times on Magic Item Table G." },
+      { min: 72, max: 72, gemsOrArt: "1d8 (4) 5,000 gp gems", magicItems: "Roll 1d4 times on Magic Item Table G." },
+      { min: 73, max: 74, gemsOrArt: "3d6 (1 0) 1,000 gp gems", magicItems: "Roll 1d4 times on Magic Item Table H." },
+      { min: 75, max: 76, gemsOrArt: "ld10 (5) 2,500 gp art objects", magicItems: "Roll 1d4 times on Magic Item Table H." },
+      { min: 77, max: 78, gemsOrArt: "1d4 (2) 7,500 gp art objects", magicItems: "Roll 1d4 times on Magic Item Table H." },
+      { min: 79, max: 80, gemsOrArt: "1d8 (4) 5,000 gp gems", magicItems: "Roll 1d4 times on Magic Item Table H." },
+      { min: 81, max: 85, gemsOrArt: "3d6 (10) 1,000 gp gems", magicItems: "Roll 1d4 times on Magic Item Table I." },
+      { min: 86, max: 90, gemsOrArt: "1d10 (5) 2,500 gp art objects", magicItems: "Roll 1d4 times on Magic Item Table I." },
+      { min: 91, max: 95, gemsOrArt: "ld4 (2) 7,500 gp art objects", magicItems: "Roll once on Magic Item Table F and 1d4 times on Magic Item Table G." },
+    ],
+  },
+  "17+": {
+    coins: {"cp":"–","sp":"–","ep":"–","gp":"12d6 X 1000 (42000)","pp":"8d6 x 1000 (28000)"},
+    entries: [
+      { min: 1, max: 1, gemsOrArt: "Azurite (opaque mottled deep blue)", magicItems: "Bloodstone (opaque dark gray with red flecks)" },
+      { min: 2, max: 2, gemsOrArt: "Banded agate (translucent striped brown, blue, white, or red)", magicItems: "Carnelian (opaque orange to red-brown)" },
+      { min: 3, max: 3, gemsOrArt: "Blue quartz (transparent pale blue)", magicItems: "Chalcedony (opaque white)" },
+      { min: 4, max: 4, gemsOrArt: "Eye agate (translucent circles of gray, white, brown, blue, or green)", magicItems: "Chrysoprase (translucent green)" },
+      { min: 5, max: 5, gemsOrArt: "Hematite (opaque gray-black)", magicItems: "Citrine (transparent pale yellow-brown)" },
+      { min: 6, max: 6, gemsOrArt: "Lapis lazuli (opaque light and dark blue with yellow flecks)", magicItems: "Jasper (opaque blue, black, or brown)" },
+      { min: 7, max: 7, gemsOrArt: "Malachite (opaque striated light and dark green)", magicItems: "Moonstone (translucent white with pale blue glow)" },
+      { min: 8, max: 8, gemsOrArt: "Moss agate (translucent pink or yellow-white with mossy gray or green markings)", magicItems: "Onyx (opaque bands of black and white, or pure black or white)" },
+      { min: 9, max: 9, gemsOrArt: "Obsidian (opaque black)", magicItems: "Quartz (transparent white, smoky gray, or yellow)" },
+      { min: 10, max: 10, gemsOrArt: "Rhodochrosite (opaque light pink)", magicItems: "Sardonyx (opaque bands of red and white)" },
+      { min: 11, max: 11, gemsOrArt: "Tiger eye (translucent brown with golden center)", magicItems: "Star rose quartz (translucent rosy stone with white star-shaped center)" },
+      { min: 12, max: 12, gemsOrArt: "Turquoise (opaque light blue-green)", magicItems: "Zircon (transparent pale blue-green)" },
+    ],
+  },
+};
+
+export function rollIndividualTreasure(
+  band: TreasureCrBand,
+  d100: number,
+): IndividualTreasureEntry | null {
+  const row = INDIVIDUAL_TREASURE[band].find((e) => d100 >= e.min && d100 <= e.max);
+  return row ?? null;
+}
+
+export function rollHoardTreasure(
+  band: TreasureCrBand,
+  d100: number,
+): HoardTreasureEntry | null {
+  const row = HOARD_TREASURE[band].entries.find((e) => d100 >= e.min && d100 <= e.max);
+  return row ?? null;
+}

@@ -38,6 +38,7 @@ import { DiceLog } from "./DiceLog";
 import { CheckStage } from "./CheckStage";
 import { DiceTray } from "./DiceTray";
 import { DMCheckControls } from "./DMCheckControls";
+import { DMLootControls } from "./DMLootControls";
 
 type Member = CampaignMember & {
   character?: Character | null;
@@ -579,11 +580,18 @@ export function CampaignRoom({
           />
 
           {isHumanDm && (
-            <DMCheckControls
-              campaignId={id}
-              members={members}
-              activeCharacterId={activeCharacterId}
-            />
+            <>
+              <DMCheckControls
+                campaignId={id}
+                members={members}
+                activeCharacterId={activeCharacterId}
+              />
+              <DMLootControls
+                campaignId={id}
+                members={members}
+                activeCharacterId={activeCharacterId}
+              />
+            </>
           )}
 
           <DiceTray onRoll={handleGenericRoll} />

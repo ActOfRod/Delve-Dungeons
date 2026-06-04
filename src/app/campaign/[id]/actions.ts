@@ -2,9 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { awardCharacterXpWithMessage } from "@/lib/award-xp";
+import { mergeInventoryGrants } from "@/lib/inventory";
+import { rollCampaignLoot } from "@/lib/loot/roll-loot";
 import { createClient } from "@/lib/supabase/server";
 import { xpForSuccessfulCheck } from "@/lib/xp";
-import type { CampaignMember, PendingCheck } from "@/lib/types";
+import type { CampaignMember, InventoryItem, PendingCheck } from "@/lib/types";
 
 async function requireMember(campaignId: string) {
   const supabase = await createClient();
@@ -238,6 +240,72 @@ export async function submitRoll(
     }
   }
   return {};
+}
+
+export async function grantCampaignLoot(
+  campaignId: string,
+  characterId: string,
+  kind: "individual" | "hoard",
+  cr: number,
+): Promise<{ error?: string; summary?: string }> {
+  const ctx = await requireMember(campaignId);
+  if ("error" in ctx) return { error: ctx.error };
+  if (ctx.membership.role !== "dm") {
+    return { error: "Only the Game Master can grant treasure." };
+  }
+
+  const { data: member } = await ctx.supabase
+    .from("campaign_members")
+    .select("character_id")
+    .eq("campaign_id", campaignId)
+    .eq("character_id", characterId)
+    .maybeSingle();
+  if (!member) {
+    return { error: "That hero is not in this campaign." };
+  }
+
+  const { data: character, error: charErr } = await ctx.supabase
+    .from("characters")
+    .select("id, name, klass, inventory")
+    .eq("id", characterId)
+    .single();
+  if (charErr || !character) {
+    return { error: charErr?.message ?? "Character not found." };
+  }
+
+  const loot = rollCampaignLoot(kind, cr);
+  const inventory = mergeInventoryGrants(
+    (character.inventory ?? []) as InventoryItem[],
+    loot.items,
+    { klass: character.klass as string },
+  );
+
+  const { error: updateErr } = await ctx.supabase
+    .from("characters")
+    .update({ inventory })
+    .eq("id", characterId);
+  if (updateErr) return { error: updateErr.message };
+
+  const itemList = loot.items
+    .filter((i) => i.name.toLowerCase() !== "gold pieces")
+    .map((i) => `${i.quantity}× ${i.name}`)
+    .join(", ");
+  const goldNote =
+    loot.goldGp > 0 ? `${loot.goldGp} GP` : "";
+  const detail = [goldNote, itemList].filter(Boolean).join("; ");
+  const content = detail
+    ? `Loot awarded to ${character.name}: ${detail}.`
+    : `Loot roll for ${character.name}: ${loot.summary}`;
+
+  await ctx.supabase.from("messages").insert({
+    campaign_id: campaignId,
+    sender_type: "system",
+    content,
+  });
+
+  revalidatePath(`/campaign/${campaignId}`);
+  revalidatePath("/dashboard");
+  return { summary: loot.summary };
 }
 
 export async function setDmVoiceEnabled(
