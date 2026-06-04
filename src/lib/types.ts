@@ -86,6 +86,8 @@ export interface Character {
   background: string | null;
   bio: string | null;
   inventory: InventoryItem[];
+  /** UTC day key → shop slot numbers already bought at The General. */
+  general_shop_purchases?: Record<string, number[]>;
   created_at: string;
 }
 

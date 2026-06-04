@@ -139,6 +139,15 @@ function rollStockSlot(
  * Generate four shop listings for levels 1–5.
  * Slot 1 is always a healing potion line; slot 2 is PHB mundane gear; slots 3–4 use class magic pools.
  */
+export function getGeneralShopListing(
+  klass: string,
+  level: number,
+  seed: string,
+  slot: ShopStockSlot,
+): GeneralShopListing | undefined {
+  return generateGeneralShopStock(klass, level, seed).find((row) => row.slot === slot);
+}
+
 export function generateGeneralShopStock(
   klass: string,
   level: number,

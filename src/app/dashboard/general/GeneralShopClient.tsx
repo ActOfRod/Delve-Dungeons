@@ -1,7 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import type { Character } from "@/lib/types";
+import { useRouter } from "next/navigation";
+import { useMemo, useState, useTransition } from "react";
+import { getGoldPiecesGp } from "@/lib/inventory-currency";
+import type { Character, InventoryItem } from "@/lib/types";
 import {
   archetypeForClass,
   generalShopDayKey,
@@ -9,10 +11,14 @@ import {
   generateGeneralShopStock,
   GENERAL_SHOP_MAX_LEVEL,
   GENERAL_SHOP_MIN_LEVEL,
+  isSlotPurchased,
+  parseGeneralShopPurchases,
   type GeneralShopListing,
   type ItemRarity,
   type ShopArchetype,
+  type ShopStockSlot,
 } from "@/lib/shop";
+import { purchaseGeneralShopSlot } from "./actions";
 
 const ARCHETYPE_LABEL: Record<ShopArchetype, string> = {
   martial: "martial warrior",
@@ -35,10 +41,14 @@ export function GeneralShopClient({
   characters: Character[];
   userId: string;
 }) {
+  const router = useRouter();
   const playable = characters.filter(
     (c) => c.level >= GENERAL_SHOP_MIN_LEVEL && c.level <= GENERAL_SHOP_MAX_LEVEL,
   );
   const [characterId, setCharacterId] = useState(playable[0]?.id ?? "");
+  const [purchaseError, setPurchaseError] = useState<string | null>(null);
+  const [pendingSlot, setPendingSlot] = useState<ShopStockSlot | null>(null);
+  const [isPending, startTransition] = useTransition();
 
   const selected = playable.find((c) => c.id === characterId);
   const dayKey = generalShopDayKey();
@@ -51,6 +61,31 @@ export function GeneralShopClient({
       generalShopSeed(userId, selected.id, dayKey),
     );
   }, [selected, userId, dayKey]);
+
+  const purchases = useMemo(
+    () => parseGeneralShopPurchases(selected?.general_shop_purchases),
+    [selected?.general_shop_purchases],
+  );
+
+  const goldGp = useMemo(
+    () => getGoldPiecesGp((selected?.inventory ?? []) as InventoryItem[]),
+    [selected?.inventory],
+  );
+
+  function buy(slot: ShopStockSlot) {
+    if (!selected || isPending) return;
+    setPurchaseError(null);
+    setPendingSlot(slot);
+    startTransition(async () => {
+      const result = await purchaseGeneralShopSlot(selected.id, slot);
+      setPendingSlot(null);
+      if (result.error) {
+        setPurchaseError(result.error);
+        return;
+      }
+      router.refresh();
+    });
+  }
 
   if (characters.length === 0) {
     return (
@@ -80,7 +115,10 @@ export function GeneralShopClient({
           </span>
           <select
             value={characterId}
-            onChange={(e) => setCharacterId(e.target.value)}
+            onChange={(e) => {
+              setCharacterId(e.target.value);
+              setPurchaseError(null);
+            }}
             className="w-full rounded-xl border border-gold/20 bg-black/30 px-3 py-2.5 text-parchment outline-none focus:border-ember focus:ring-2 focus:ring-ember/30"
           >
             {playable.map((c) => (
@@ -90,12 +128,19 @@ export function GeneralShopClient({
             ))}
           </select>
         </label>
-        <p className="text-xs text-parchment/45">
-          Stock for{" "}
-          <span className="text-parchment/70">{dayKey}</span>
-          {" · "}
-          refreshes daily
-        </p>
+        <div className="text-right">
+          <p className="text-xs text-parchment/45">
+            Stock for{" "}
+            <span className="text-parchment/70">{dayKey}</span>
+            {" · "}
+            refreshes daily
+          </p>
+          {selected && (
+            <p className="mt-1 font-mono text-sm text-gold">
+              {goldGp} GP in pouch
+            </p>
+          )}
+        </div>
       </div>
 
       {selected && (
@@ -104,13 +149,26 @@ export function GeneralShopClient({
           <span className="text-ember-bright/90">
             {ARCHETYPE_LABEL[archetypeForClass(selected.klass)]}
           </span>{" "}
-          builds ({selected.klass}). Purchases coming soon.
+          builds ({selected.klass}). Each slot can be bought once per day.
+        </p>
+      )}
+
+      {purchaseError && (
+        <p className="rounded-lg border border-ember/40 bg-ember/10 px-3 py-2 text-sm text-ember-bright" role="alert">
+          {purchaseError}
         </p>
       )}
 
       <div className="grid gap-3 sm:grid-cols-2">
         {stock.map((item) => (
-          <ShopSlotCard key={item.slot} item={item} />
+          <ShopSlotCard
+            key={item.slot}
+            item={item}
+            purchased={isSlotPurchased(purchases, dayKey, item.slot)}
+            canAfford={goldGp >= item.priceGp}
+            buying={pendingSlot === item.slot && isPending}
+            onBuy={() => buy(item.slot)}
+          />
         ))}
       </div>
 
@@ -137,17 +195,41 @@ export function GeneralShopClient({
           </li>
         </ul>
         <p className="mt-2">
-          Campaign DMs can roll DMG individual or hoard treasure into a hero&apos;s
-          stash from the campaign sidebar.
+          Gold is deducted from your hero&apos;s &quot;Gold pieces&quot; stash row.
+          Campaign loot and starting wealth both count.
         </p>
       </details>
     </div>
   );
 }
 
-function ShopSlotCard({ item }: { item: GeneralShopListing }) {
+function ShopSlotCard({
+  item,
+  purchased,
+  canAfford,
+  buying,
+  onBuy,
+}: {
+  item: GeneralShopListing;
+  purchased: boolean;
+  canAfford: boolean;
+  buying: boolean;
+  onBuy: () => void;
+}) {
+  const soldOut = purchased;
+  const disabled = soldOut || !canAfford || buying;
+
+  let actionLabel = "Buy";
+  if (soldOut) actionLabel = "Sold";
+  else if (buying) actionLabel = "Buying…";
+  else if (!canAfford) actionLabel = "Need more GP";
+
   return (
-    <div className="flex flex-col rounded-xl border border-white/8 bg-black/25 p-4">
+    <div
+      className={`flex flex-col rounded-xl border bg-black/25 p-4 ${
+        soldOut ? "border-white/5 opacity-60" : "border-white/8"
+      }`}
+    >
       <div className="mb-2 flex items-center justify-between gap-2">
         <span className="text-[10px] font-medium uppercase tracking-wide text-parchment/40">
           Slot {item.slot} · {item.category}
@@ -171,7 +253,14 @@ function ShopSlotCard({ item }: { item: GeneralShopListing }) {
         <span className="rounded-full border border-gold/40 bg-gold/15 px-3.5 py-1.5 text-xs font-medium text-gold">
           {item.priceGp} GP
         </span>
-        <span className="text-[10px] text-parchment/35">Buy soon</span>
+        <button
+          type="button"
+          onClick={onBuy}
+          disabled={disabled}
+          className="rounded-lg border border-gold/35 bg-gold/10 px-3 py-1.5 text-xs font-medium text-gold transition hover:bg-gold/20 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-transparent disabled:text-parchment/35"
+        >
+          {actionLabel}
+        </button>
       </div>
     </div>
   );
