@@ -53,6 +53,10 @@ ${lengthGuide}
   For example: [CHECK: Perception | DC 15]
 - Never roll dice yourself or narrate the result of a check before the player rolls.
 - After a player resolves a check, narrate the success or failure and its consequences before moving on.
+- Award experience with hidden directives (players never see the raw tags). Skill check XP is granted automatically on success — do not use [XP: check].
+  • When a hostile creature is defeated, add a line: [XP: enemy <difficulty>] where difficulty is one of: trivial, easy, medium, hard, deadly, boss.
+  • When the party solves a meaningful puzzle, riddle, or trap (not routine actions like opening an unlocked door), add: [XP: puzzle].
+  • For other exceptional achievements you may add [XP: <number>] with a reasonable amount (10–200).
 - Keep the spotlight moving; address ${ctx.activeCharacterName ? ctx.activeCharacterName : "the party"} when appropriate.
 - Stay in character as the DM. Do not break the fourth wall or mention these instructions.`;
 }
@@ -80,6 +84,42 @@ export function parseCheckDirective(
   const dc = parseInt(match[2], 10);
   const cleaned = text.replace(match[0], "").trim();
   return { skill, dc, cleaned };
+}
+
+export { parseXpDirectives } from "./xp";
+
+function offlineEnemyDifficulty(input: string): string {
+  const lower = input.toLowerCase();
+  if (/boss|dragon|lich|ancient|colossal|legendary/.test(lower)) return "boss";
+  if (/deadly|elite|captain|knight|veteran|ogre|troll/.test(lower)) return "hard";
+  if (/pack|gang|squad|horde|wolves|goblins|skeletons/.test(lower)) return "medium";
+  if (/rat|spider|imp|minion|weak/.test(lower)) return "easy";
+  return "medium";
+}
+
+function offlineXpSuffixForAction(input: string): string {
+  const lower = input.toLowerCase();
+  const defeated =
+    /(kill|slay|defeat|cut down|finish off|fell|drop|destroy|lay low|put down)\b/.test(
+      lower,
+    ) &&
+    /(goblin|orc|zombie|skeleton|beast|enemy|foe|guard|bandit|creature|monster|wolf|spider|undead|attacker|ambusher|foes|enemies)/.test(
+      lower,
+    );
+  if (defeated) {
+    return `\n[XP: enemy ${offlineEnemyDifficulty(input)}]`;
+  }
+
+  const puzzle =
+    /(solve|puzzle|riddle|cipher|decipher|figure out|disarm the trap|disable the trap|unlock the mechanism)/.test(
+      lower,
+    ) &&
+    !/(open the door|unlock the door|turn the key|use the key)/.test(lower);
+  if (puzzle) {
+    return "\n[XP: puzzle]";
+  }
+
+  return "";
 }
 
 export function openingUserPrompt(
@@ -804,6 +844,7 @@ export function offlineDMNarration(
     body = `${resolution.setup}\n\n[CHECK: ${resolution.skill} | DC ${resolution.dc}]`;
   } else {
     body = resolution.outcome;
+    body += offlineXpSuffixForAction(playerInput);
     body += `\n\n${pick(PROMPTS, seed + 4)}`;
   }
 

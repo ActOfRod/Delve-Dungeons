@@ -2,6 +2,7 @@
 
 import type { CampaignMember, Character, Profile } from "@/lib/types";
 import { abilityModifier, formatModifier } from "@/lib/dnd";
+import { xpProgress } from "@/lib/xp";
 
 type Member = CampaignMember & {
   character?: Character | null;
@@ -104,13 +105,37 @@ export function PartyPanel({
                   )}
                 </div>
                 {m.character && (
-                  <div className="flex items-center gap-2 text-[11px] text-parchment/50">
-                    <span>
-                      Lv {m.character.level} {m.character.klass}
-                    </span>
-                    <span className="text-red-300/70">
-                      {m.character.current_hp}/{m.character.max_hp} HP
-                    </span>
+                  <div className="space-y-1 text-[11px] text-parchment/50">
+                    <div className="flex items-center gap-2">
+                      <span>
+                        Lv {m.character.level} {m.character.klass}
+                      </span>
+                      <span className="text-red-300/70">
+                        {m.character.current_hp}/{m.character.max_hp} HP
+                      </span>
+                    </div>
+                    {(() => {
+                      const xp = m.character.xp ?? 0;
+                      const prog = xpProgress(m.character.level, xp);
+                      if (prog.xpForNextLevel == null) {
+                        return (
+                          <span className="text-gold/80">{xp.toLocaleString()} XP (max level)</span>
+                        );
+                      }
+                      return (
+                        <div className="flex items-center gap-2">
+                          <div className="h-1 min-w-0 flex-1 overflow-hidden rounded-full bg-black/40">
+                            <div
+                              className="h-full rounded-full bg-gold/70"
+                              style={{ width: `${prog.progressPercent}%` }}
+                            />
+                          </div>
+                          <span className="shrink-0 tabular-nums text-[10px] text-parchment/40">
+                            {prog.xpIntoLevel}/{prog.xpForNextLevel}
+                          </span>
+                        </div>
+                      );
+                    })()}
                   </div>
                 )}
               </div>

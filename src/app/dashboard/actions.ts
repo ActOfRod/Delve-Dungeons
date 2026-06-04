@@ -127,6 +127,7 @@ export async function createCharacter(
     race,
     klass,
     level: 1,
+    xp: 0,
     abilities,
     max_hp: maxHp,
     current_hp: maxHp,

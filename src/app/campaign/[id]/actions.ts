@@ -1,7 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { awardCharacterXpWithMessage } from "@/lib/award-xp";
 import { createClient } from "@/lib/supabase/server";
+import { xpForSuccessfulCheck } from "@/lib/xp";
 import type { CampaignMember, PendingCheck } from "@/lib/types";
 
 async function requireMember(campaignId: string) {
@@ -221,6 +223,16 @@ export async function submitRoll(
       sender_type: "system",
       content: `${input.characterName ?? "A hero"} rolled ${input.total} for the ${input.skill} check (DC ${input.dc})${verdict}`,
     });
+
+    if (input.success && input.characterId && input.dc != null) {
+      const amount = xpForSuccessfulCheck(input.dc);
+      await awardCharacterXpWithMessage(
+        campaignId,
+        input.characterId,
+        amount,
+        `successful ${input.skill} check (DC ${input.dc})`,
+      );
+    }
   }
   return {};
 }

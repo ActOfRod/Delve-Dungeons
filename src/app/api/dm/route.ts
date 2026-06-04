@@ -14,9 +14,11 @@ import {
   offlineOpeningNarration,
   openingUserPrompt,
   parseCheckDirective,
+  parseXpDirectives,
   type CheckResultContext,
   type DMContext,
 } from "@/lib/dm";
+import { awardCharacterXpWithMessage } from "@/lib/award-xp";
 import { synthesizeGeminiTts } from "@/lib/dm-tts";
 import { SKILLS } from "@/lib/dnd";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
@@ -469,9 +471,10 @@ export async function POST(request: Request) {
     }
   }
 
+  const xpParsed = parseXpDirectives(generated);
   const directive =
-    opening || resolvedCheck ? null : parseCheckDirective(generated);
-  const narration = directive ? directive.cleaned : generated;
+    opening || resolvedCheck ? null : parseCheckDirective(xpParsed.cleaned);
+  const narration = directive ? directive.cleaned : xpParsed.cleaned;
 
   const { data: inserted, error } = await supabase
     .from("messages")
@@ -485,6 +488,18 @@ export async function POST(request: Request) {
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  const xpTargetId = campaign.active_character_id;
+  if (xpParsed.directives.length > 0 && xpTargetId) {
+    for (const xpDirective of xpParsed.directives) {
+      await awardCharacterXpWithMessage(
+        campaignId,
+        xpTargetId,
+        xpDirective.amount,
+        xpDirective.label,
+      );
+    }
   }
 
   // If the DM called for a check, record it on the campaign so all connected

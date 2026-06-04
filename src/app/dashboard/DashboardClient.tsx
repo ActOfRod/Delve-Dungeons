@@ -325,6 +325,10 @@ function CharacterCard({
             </h3>
             <p className="mt-1 text-sm text-parchment/60 sm:text-base">
               Level {character.level} {character.race} {character.klass}
+              <span className="text-parchment/40">
+                {" "}
+                · {(character.xp ?? 0).toLocaleString()} XP
+              </span>
             </p>
           </div>
           <div className="rounded-lg border border-blood/30 bg-blood/10 px-3 py-1.5 text-center">

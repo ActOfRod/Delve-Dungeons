@@ -81,7 +81,10 @@ export function CampaignRoom({
   const id = campaign.id;
   const isHumanDm = myMembership.role === "dm";
   const dmVoiceEnabled = campaign.dm_voice_enabled ?? false;
-  const myCharacter = myMembership.character ?? null;
+  const myCharacter = useMemo(() => {
+    const fromTable = members.find((m) => m.user_id === currentUserId)?.character;
+    return fromTable ?? myMembership.character ?? null;
+  }, [members, currentUserId, myMembership.character]);
   const pendingCheck = campaign.pending_check as PendingCheck | null;
 
   const activeCharacterId = campaign.active_character_id;
@@ -134,6 +137,20 @@ export function CampaignRoom({
             prev.some((m) => m.id === msg.id) ? prev : [...prev, msg],
           );
           if (msg.sender_type === "dm") setDmThinking(false);
+          if (msg.sender_type === "system" && /gained \d+ XP/i.test(msg.content)) {
+            void refetchMembers();
+          }
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "characters",
+        },
+        () => {
+          void refetchMembers();
         },
       )
       .on(
