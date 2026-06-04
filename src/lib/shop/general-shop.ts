@@ -1,4 +1,6 @@
-import { getPoolForArchetype, archetypeForClass, type ShopCatalogEntry } from "./catalog";
+import { MUNDANE_ITEMS } from "@/lib/loot/mundane-items";
+import type { MundaneCategory } from "@/lib/loot/types";
+import { getPoolForArchetype, archetypeForClass, type ShopArchetype, type ShopCatalogEntry } from "./catalog";
 import { rollHealingPotionStock } from "./healing-potions";
 import {
   nearestRarity,
@@ -67,6 +69,53 @@ function pickFromPool(
   return bucket[Math.floor(random() * bucket.length)]!;
 }
 
+const MUNDANE_SHOP_MAX_GP = 750;
+
+function mundaneCategoriesForArchetype(archetype: ShopArchetype): MundaneCategory[] {
+  switch (archetype) {
+    case "martial":
+      return ["weapon", "armor", "shield"];
+    case "agile":
+      return ["weapon", "gear", "tool"];
+    case "caster":
+      return ["gear", "tool"];
+    case "divine":
+      return ["gear", "tool", "armor"];
+    default:
+      return ["weapon", "gear"];
+  }
+}
+
+function rarityForMundaneCost(costGp: number): ItemRarity {
+  if (costGp >= 500) return "rare";
+  if (costGp >= 100) return "uncommon";
+  return "common";
+}
+
+function rollMundaneEquipmentSlot(
+  archetype: ReturnType<typeof archetypeForClass>,
+  random: () => number,
+): GeneralShopListing {
+  const categories = mundaneCategoriesForArchetype(archetype);
+  const pool = MUNDANE_ITEMS.filter(
+    (i) =>
+      categories.includes(i.category) &&
+      i.costGp > 0 &&
+      i.costGp <= MUNDANE_SHOP_MAX_GP,
+  );
+  const item = pool[Math.floor(random() * pool.length)] ?? MUNDANE_ITEMS[0]!;
+  const priceGp = Math.max(1, Math.ceil(item.costGp));
+  return {
+    slot: 2,
+    name: item.name,
+    quantity: 1,
+    rarity: rarityForMundaneCost(item.costGp),
+    priceGp,
+    category: "Equipment",
+    description: item.notes,
+  };
+}
+
 function rollStockSlot(
   slot: 2 | 3 | 4,
   archetype: ReturnType<typeof archetypeForClass>,
@@ -88,7 +137,7 @@ function rollStockSlot(
 
 /**
  * Generate four shop listings for levels 1–5.
- * Slot 1 is always a healing potion line (tier/qty rolled); slots 2–4 use class pools.
+ * Slot 1 is always a healing potion line; slot 2 is PHB mundane gear; slots 3–4 use class magic pools.
  */
 export function generateGeneralShopStock(
   klass: string,
@@ -106,7 +155,7 @@ export function generateGeneralShopStock(
 
   return [
     rollHealingPotionStock(random),
-    rollStockSlot(2, archetype, random),
+    rollMundaneEquipmentSlot(archetype, random),
     rollStockSlot(3, archetype, random),
     rollStockSlot(4, archetype, random),
   ];

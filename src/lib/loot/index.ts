@@ -31,3 +31,14 @@ export {
 
 export const LOOT_DATA_SOURCE =
   "https://dungeonmastertools.github.io/ (MIT; tables adapted from DMG/PHB reference)";
+
+export {
+  crToTreasureBand,
+  rollCampaignLoot,
+  rollHoardTreasureLoot,
+  rollIndividualTreasureLoot,
+  resolveMagicItemRolls,
+  type CampaignLootResult,
+  type LootGrantItem,
+  type LootRng,
+} from "./roll-loot";

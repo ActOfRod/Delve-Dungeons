@@ -121,6 +121,71 @@ export function applyEquippedInference(
   });
 }
 
+function isGoldPiecesName(name: string): boolean {
+  return normalizeGoldName(name) === "gold pieces";
+}
+
+function normalizeGoldName(name: string): string {
+  return name.trim().toLowerCase();
+}
+
+/** Merge rolled or purchased items into a character or vault inventory. */
+export function mergeInventoryGrants(
+  inventory: InventoryItem[],
+  grants: { name: string; quantity: number; description?: string }[],
+  options?: { klass?: string },
+): InventoryItem[] {
+  const next = normalizeInventoryItems([...inventory], {
+    klass: options?.klass,
+    inferEquipped: false,
+  });
+
+  for (const grant of grants) {
+    const qty = Math.max(1, grant.quantity);
+    if (isGoldPiecesName(grant.name)) {
+      const idx = next.findIndex((i) => isGoldPiecesName(i.name));
+      if (idx >= 0) {
+        const row = next[idx]!;
+        next[idx] = {
+          ...row,
+          quantity: row.quantity + qty,
+          description: grant.description ?? row.description,
+        };
+      } else {
+        next.push(
+          ensureItemId({
+            name: "Gold pieces",
+            quantity: qty,
+            description: grant.description,
+            category: "currency",
+          }),
+        );
+      }
+      continue;
+    }
+
+    const key = grant.name.trim().toLowerCase();
+    const existing = next.find((i) => i.name.trim().toLowerCase() === key);
+    if (existing) {
+      existing.quantity += qty;
+      if (grant.description && !existing.description) {
+        existing.description = grant.description;
+      }
+    } else {
+      next.push(
+        ensureItemId({
+          name: grant.name.trim(),
+          quantity: qty,
+          description: grant.description,
+          category: categorizeItemName(grant.name),
+        }),
+      );
+    }
+  }
+
+  return next;
+}
+
 export function enrichNewItems(
   items: { name: string; quantity: number; description?: string }[],
   klass: string,

@@ -1,5 +1,6 @@
 import type { InventoryItem, ItemCategory } from "./types";
 import { categorizeItemName } from "./inventory";
+import { findMundaneItem } from "@/lib/loot/mundane-items";
 
 /** Per-unit value in gold pieces (PHB equipment prices, rounded for play). */
 const ITEM_VALUE_GP: Record<string, number> = {
@@ -132,6 +133,9 @@ export function getItemUnitValueGp(name: string): number {
 
   // "Acolyte feature" etc.
   if (/\bfeature$/i.test(name.trim())) return 0;
+
+  const mundane = findMundaneItem(name);
+  if (mundane && mundane.costGp > 0) return mundane.costGp;
 
   const cat = categorizeItemName(name);
   return CATEGORY_DEFAULT_GP[cat];
