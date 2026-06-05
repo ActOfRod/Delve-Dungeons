@@ -32,8 +32,17 @@ export function isProficiencyRecordItem(name: string): boolean {
   return n === "skill proficiencies" || n === "tool proficiencies";
 }
 
+/** Background/class feature rows (e.g. "Folk Hero feature") — character sheet metadata, not gear. */
+export function isCharacterFeatureItem(name: string): boolean {
+  return /\bfeature$/i.test(name.trim());
+}
+
+export function isCharacterAttributeItem(name: string): boolean {
+  return isProficiencyRecordItem(name) || isCharacterFeatureItem(name);
+}
+
 export function filterPhysicalInventoryItems<T extends InventoryItem>(items: T[]): T[] {
-  return items.filter((item) => !isProficiencyRecordItem(item.name));
+  return items.filter((item) => !isCharacterAttributeItem(item.name));
 }
 
 export function categorizeItemName(name: string): ItemCategory {
@@ -260,6 +269,7 @@ export function filterInventory(
   return items;
 }
 
+/** Count inventory rows (stacks), not units — e.g. 20 bolts = 1 item, 100 GP = 1 item. */
 export function countInventoryItems(items: DisplayInventoryItem[]): number {
-  return items.reduce((sum, i) => sum + i.quantity, 0);
+  return items.length;
 }
